@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.db
+*.sqlite3
+*.log
+.DS_Store
+data/*.csv
+data/*.zip
+data/*.json
+rl_bandit_weights.json
+frontend/.streamlit/
+ollama.log
+server.log
+*.pid

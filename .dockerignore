@@ -1,0 +1,37 @@
+# Python / virtualenv
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets & local env
+.env
+.env.*
+
+# Local databases (we use the mounted Fly volume in production)
+*.db
+*.sqlite
+*.sqlite3
+
+# Large / regenerated data artifacts
+data/usda_csv/
+data/*.zip
+data/rl_bandit_weights.json
+
+# Tests & CI aren't needed in the runtime image
+tests/
+.github/
+
+# VCS & tooling
+.git/
+.gitignore
+*.md
+!README.md
+
+# OS cruft
+.DS_Store

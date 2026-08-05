@@ -1,0 +1,51 @@
+# Fly.io configuration for Macromancer (single container: backend + frontend).
+# Public traffic (80/443) is routed to the Streamlit UI on port 8501; the FastAPI
+# backend runs alongside it on 8000 and is reached internally by the UI.
+app = "macromancer"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret environment. Secrets (NUTRITIONIX_APP_ID / NUTRITIONIX_API_KEY) are
+# set with `flyctl secrets set ...` (see scripts/deploy.sh).
+[env]
+  # SQLite DB and RL bandit weights live on the mounted volume so they persist
+  # across restarts/deploys (four slashes => absolute path /persistent/...).
+  DATABASE_URL = "sqlite:////persistent/macromentor.db"
+  RL_BANDIT_PATH = "/persistent/rl_bandit_weights.json"
+  # The UI calls the backend inside the same machine.
+  MACROMANCER_API_URL = "http://localhost:8000"
+  # Ollama isn't installed on the free tier; the chat endpoint degrades to a
+  # plain suggestion. (Flag kept for intent/forward-compat.)
+  DISABLE_OLLAMA = "true"
+
+# Persistent volume: create with `flyctl volumes create macromentor_data --size 1`.
+[[mounts]]
+  source = "macromentor_data"
+  destination = "/persistent"
+
+[[services]]
+  internal_port = 8501
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "30s"
+
+# The ML stack (xgboost + pandas + streamlit + numpy + sklearn) needs more than
+# the default 256MB. 1GB is a safe floor; adjust to taste.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
