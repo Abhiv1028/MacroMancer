@@ -11,15 +11,15 @@ import streamlit as st
 import api_client as api
 from utils import helpers
 
-helpers.setup_page("Body & TDEE", icon="⚖️")
+helpers.setup_page("Body & TDEE")
 user_id = helpers.render_sidebar()
 
-st.markdown("# ⚖️ Body Composition & TDEE")
+helpers.page_header("scale", "Body & TDEE", "Log weight; your targets recalculate.")
 
 # --- TDEE cards ------------------------------------------------------------ #
 try:
     tdee = api.get_tdee(user_id)
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3, gap="medium")
     c1.metric("Static TDEE", f"{helpers.fmt(tdee.get('current_tdee'))} kcal")
     adaptive = tdee.get("adaptive_tdee")
     c2.metric("Adaptive TDEE", f"{helpers.fmt(adaptive)} kcal" if adaptive else "—",
@@ -28,16 +28,17 @@ try:
 except api.APIError as exc:
     helpers.toast_error(exc)
 
-st.divider()
+st.markdown('<hr class="mm-rule">', unsafe_allow_html=True)
 
 # --- Log a measurement ----------------------------------------------------- #
-st.markdown("### Log a measurement")
+st.markdown('<div class="mm-eyebrow" style="margin-bottom:.6rem;">Log a measurement</div>',
+            unsafe_allow_html=True)
 with st.form("bodycomp"):
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3, gap="medium")
     weight = c1.number_input("Weight (kg)", 20.0, 400.0, 75.0, step=0.1)
     body_fat = c2.number_input("Body fat % (optional)", 0.0, 100.0, 0.0, step=0.1)
     d = c3.date_input("Date", value=date.today())
-    if st.form_submit_button("💾 Save & recalc targets", type="primary", use_container_width=True):
+    if st.form_submit_button("Save & recalc targets", type="primary", use_container_width=True):
         payload = {"user_id": user_id, "weight_kg": weight, "date": d.isoformat()}
         if body_fat > 0:
             payload["body_fat_percent"] = body_fat
@@ -49,15 +50,20 @@ with st.form("bodycomp"):
             api.get_tdee.clear()
             t = res.get("updated_targets", {})
             st.success(
-                f"Saved! New targets → 🔥 {helpers.fmt(t.get('calories'))} kcal · "
-                f"🥩 {helpers.fmt(t.get('protein_g'))}p · 🍚 {helpers.fmt(t.get('carbs_g'))}c · "
-                f"🥑 {helpers.fmt(t.get('fat_g'))}f"
+                f"Saved. New targets → {helpers.fmt(t.get('calories'))} kcal · "
+                f"P {helpers.fmt(t.get('protein_g'))} · C {helpers.fmt(t.get('carbs_g'))} · "
+                f"F {helpers.fmt(t.get('fat_g'))}"
             )
         except api.APIError as exc:
             helpers.toast_error(exc)
 
 # --- Weight trend ---------------------------------------------------------- #
-st.markdown("### 📈 Weight trend")
+st.markdown('<hr class="mm-rule">', unsafe_allow_html=True)
+st.markdown(
+    f'<div class="mm-head" style="margin-bottom:.8rem;">{helpers.icon("trending-up", 18, helpers.COLORS["accent"])}'
+    f'<span style="font-weight:600;font-size:1.1rem;">Weight trend</span></div>',
+    unsafe_allow_html=True,
+)
 try:
     history = api.body_comp_history(user_id)
 except api.APIError:
@@ -69,14 +75,16 @@ else:
     fig = go.Figure(
         go.Scatter(
             x=df["date"], y=df["weight"], mode="lines+markers",
-            line=dict(color=helpers.COLORS["primary"], width=3),
-            marker=dict(size=8, color=helpers.COLORS["secondary"]),
+            line=dict(color=helpers.COLORS["accent"], width=2.5),
+            marker=dict(size=7, color=helpers.COLORS["accent_600"]),
         )
     )
     fig.update_layout(
         height=340, margin=dict(l=10, r=10, t=10, b=10),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         yaxis_title="kg", xaxis_title=None,
-        font=dict(color=helpers.COLORS["text"]),
+        font=dict(color=helpers.COLORS["text"], family="Inter"),
+        xaxis=dict(gridcolor=helpers.COLORS["border"]),
+        yaxis=dict(gridcolor=helpers.COLORS["border"]),
     )
     st.plotly_chart(fig, use_container_width=True)

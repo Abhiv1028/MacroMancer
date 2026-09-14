@@ -1,0 +1,16 @@
+# Forced light theme with a single cohesive palette (sage + warm neutrals).
+# Forcing base="light" also fixes the white-on-white issue that appears when
+# Streamlit auto-switches to dark mode under custom light CSS.
+[theme]
+base = "light"
+primaryColor = "#46584A"              # deep sage — the single accent
+backgroundColor = "#F3F2EE"           # warm ivory (app background)
+secondaryBackgroundColor = "#FFFFFF"  # surfaces: cards, sidebar, inputs
+textColor = "#1E211D"                 # warm charcoal
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+
+[ui]
+hideTopBar = true

@@ -1,4 +1,4 @@
-"""Reusable macro progress bars and metric cards."""
+"""Macro progress cards + calorie hero (premium, single-palette)."""
 
 from __future__ import annotations
 
@@ -7,21 +7,24 @@ import streamlit as st
 from utils import helpers
 
 
+def _remaining_label(consumed: float, target: float, unit: str) -> str:
+    if consumed > target:
+        return f"{helpers.fmt(consumed - target)} {unit} over"
+    return f"{helpers.fmt(max(target - consumed, 0))} {unit} remaining"
+
+
 def macro_bar(label: str, consumed: float, target: float, unit: str = "g", color: str = None) -> None:
-    """Render a labeled horizontal macro progress bar inside a card."""
+    """A labeled macro progress card with a dot marker and thin track."""
     ratio = (consumed / target) if target else 0.0
     fill = min(ratio * 100.0, 100.0)
-    bar_color = color or helpers.ratio_color(ratio)
-    remaining = max(target - consumed, 0)
+    col = color or helpers.ratio_color(ratio)
     st.markdown(
         f"""
         <div class="mm-card">
-          <div class="mm-metric-label">{label}</div>
-          <div class="mm-metric-value" style="color:{bar_color};">
-            {helpers.fmt(consumed)}<span style="font-size:1rem;color:{helpers.COLORS['muted']};"> / {helpers.fmt(target)} {unit}</span>
-          </div>
-          <div class="mm-bar-track"><div class="mm-bar-fill" style="width:{fill}%;background:{bar_color};"></div></div>
-          <div class="mm-metric-sub">{helpers.fmt(ratio*100)}% · {helpers.fmt(remaining)} {unit} left</div>
+          <div class="mm-eyebrow"><span class="mm-dot" style="background:{col};"></span>{label}</div>
+          <div class="mm-value" style="margin-top:.55rem;">{helpers.fmt(consumed)}<span class="mm-unit"> / {helpers.fmt(target)} {unit}</span></div>
+          <div class="mm-track"><div class="mm-fill" style="width:{fill}%;background:{col};"></div></div>
+          <div class="mm-sub">{helpers.fmt(ratio * 100)}% &middot; {_remaining_label(consumed, target, unit)}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -29,19 +32,19 @@ def macro_bar(label: str, consumed: float, target: float, unit: str = "g", color
 
 
 def calorie_hero(consumed: float, target: float) -> None:
-    """A larger hero card for the day's calories."""
+    """A wide hero card for the day's energy balance."""
     ratio = (consumed / target) if target else 0.0
     fill = min(ratio * 100.0, 100.0)
-    color = helpers.ratio_color(ratio)
+    col = helpers.ratio_color(ratio)
     st.markdown(
         f"""
-        <div class="mm-card" style="border-left:6px solid {color};">
-          <div class="mm-metric-label">Calories today</div>
-          <div class="mm-metric-value" style="font-size:2.4rem;color:{color};">
-            {helpers.fmt(consumed)}<span style="font-size:1.1rem;color:{helpers.COLORS['muted']};"> / {helpers.fmt(target)} kcal</span>
+        <div class="mm-card" style="padding:1.6rem 1.7rem;">
+          <div class="mm-eyebrow" style="display:flex;align-items:center;gap:.5rem;">
+            {helpers.icon('flame', 15, helpers.COLORS['accent'])} Energy today
           </div>
-          <div class="mm-bar-track" style="height:16px;"><div class="mm-bar-fill" style="width:{fill}%;background:{color};"></div></div>
-          <div class="mm-metric-sub">{helpers.fmt(max(target-consumed,0))} kcal remaining</div>
+          <div class="mm-value" style="font-size:2.6rem;margin-top:.5rem;">{helpers.fmt(consumed)}<span class="mm-unit" style="font-size:1.1rem;"> / {helpers.fmt(target)} kcal</span></div>
+          <div class="mm-track" style="height:10px;"><div class="mm-fill" style="width:{fill}%;background:{col};"></div></div>
+          <div class="mm-sub">{_remaining_label(consumed, target, 'kcal')}</div>
         </div>
         """,
         unsafe_allow_html=True,

@@ -7,10 +7,10 @@ import streamlit as st
 import api_client as api
 from utils import helpers
 
-helpers.setup_page("Optimize", icon="🎯")
+helpers.setup_page("Optimize")
 user_id = helpers.render_sidebar()
 
-st.markdown("# 🎯 Optimize Your Next Meal")
+helpers.page_header("target", "Optimize", "The best next foods for your remaining macros.")
 
 try:
     targets = api.get_targets(user_id, helpers.today_str())
@@ -25,19 +25,19 @@ remaining = {
     "fat_g": max(targets.get("fat_g", 0) - consumed["fat_g"], 0),
 }
 
-st.markdown("### Remaining today")
-r1, r2, r3 = st.columns(3)
-r1.metric("🥩 Protein", f"{helpers.fmt(remaining['protein_g'])} g")
-r2.metric("🍚 Carbs", f"{helpers.fmt(remaining['carbs_g'])} g")
-r3.metric("🥑 Fat", f"{helpers.fmt(remaining['fat_g'])} g")
+st.markdown('<div class="mm-eyebrow" style="margin-bottom:.6rem;">Remaining today</div>',
+            unsafe_allow_html=True)
+r1, r2, r3 = st.columns(3, gap="medium")
+r1.metric("Protein", f"{helpers.fmt(remaining['protein_g'])} g")
+r2.metric("Carbohydrate", f"{helpers.fmt(remaining['carbs_g'])} g")
+r3.metric("Fat", f"{helpers.fmt(remaining['fat_g'])} g")
 
-st.divider()
+st.markdown('<hr class="mm-rule">', unsafe_allow_html=True)
 meal_type = st.selectbox("Meal type", helpers.meal_types(), index=2)
 
-if st.button("✨ Get recommendations", type="primary"):
+if st.button("Get recommendations", type="primary"):
     with st.spinner("Scoring foods with the ML model…"):
         try:
-            # current_macros = eaten so far (backend expects consumed).
             res = api.optimize(
                 user_id,
                 {"protein_g": consumed["protein_g"], "carbs_g": consumed["carbs_g"],
@@ -51,7 +51,11 @@ if st.button("✨ Get recommendations", type="primary"):
 
 results = st.session_state.get("opt_results", [])
 if results:
-    st.markdown("### 🥇 Top picks")
+    st.markdown(
+        f'<div class="mm-head" style="margin:1.2rem 0 .8rem;">{helpers.icon("star", 18, helpers.COLORS["accent"])}'
+        f'<span style="font-weight:600;font-size:1.1rem;">Top picks</span></div>',
+        unsafe_allow_html=True,
+    )
     for i, rec in enumerate(results):
         macros = rec.get("macros_per_serving", {})
         with st.container(border=True):
@@ -59,17 +63,15 @@ if results:
             with c1:
                 score = rec.get("predicted_score", 0)
                 st.markdown(
-                    f"**{rec.get('name','Food')}** &nbsp; "
-                    f"<span class='mm-pill' style='background:{helpers.ratio_color(score+0.3)};'>"
-                    f"score {helpers.fmt(score*100)}%</span>",
+                    f'<div style="padding:.3rem .5rem;">'
+                    f'<span style="font-weight:600;">{rec.get("name","Food")}</span> &nbsp;'
+                    f'<span class="mm-pill">score {helpers.fmt(score*100)}%</span>'
+                    f'<div class="mm-sub" style="margin-top:.35rem;">'
+                    f'Suggested {helpers.fmt(rec.get("suggested_grams"))} g &nbsp;·&nbsp; '
+                    f'{helpers.fmt(macros.get("calories"))} kcal &nbsp;·&nbsp; '
+                    f'P {helpers.fmt(macros.get("protein_g"))} &nbsp; C {helpers.fmt(macros.get("carbs_g"))} &nbsp; F {helpers.fmt(macros.get("fat_g"))}'
+                    f'</div></div>',
                     unsafe_allow_html=True,
-                )
-                st.caption(
-                    f"Suggested {helpers.fmt(rec.get('suggested_grams'))} g · "
-                    f"🔥 {helpers.fmt(macros.get('calories'))} kcal · "
-                    f"🥩 {helpers.fmt(macros.get('protein_g'))}p · "
-                    f"🍚 {helpers.fmt(macros.get('carbs_g'))}c · "
-                    f"🥑 {helpers.fmt(macros.get('fat_g'))}f"
                 )
             with c2:
                 grams = st.number_input(
@@ -87,7 +89,7 @@ if results:
                             "fat_g": m.get("fat_g", 0), "calories": m.get("calories", 0),
                             "timestamp": m.get("timestamp", ""), "meal_log_id": m.get("id"),
                         })
-                        st.success(f"Logged {rec.get('name')}! 🎉")
+                        st.success(f"Logged {rec.get('name')}.")
                         st.rerun()
                     except api.APIError as exc:
                         helpers.toast_error(exc)

@@ -1,8 +1,4 @@
-"""Macromancer — Streamlit frontend entry point (landing page).
-
-Run with:  streamlit run frontend/app.py
-The Dashboard and feature pages live in ``frontend/pages/``.
-"""
+"""Macromancer — Streamlit frontend entry point (landing)."""
 
 from __future__ import annotations
 
@@ -10,48 +6,63 @@ import streamlit as st
 
 from utils import helpers
 
-helpers.setup_page("Home", icon="🥗")
+helpers.setup_page("Home")
 user_id = helpers.render_sidebar()
+C = helpers.COLORS
 
-st.markdown("# 🥗 Welcome to Macromancer")
 st.markdown(
-    "#### Your personal, AI-driven nutrition coach — meal planning, macro "
-    "optimization, restaurants, groceries, and adaptive targets, all in one place."
+    f"""
+    <div style="padding:1rem 0 .5rem;">
+      <div class="mm-eyebrow">Precision nutrition</div>
+      <h1 style="font-size:2.3rem;margin:.5rem 0 .4rem;max-width:20ch;">An adaptive macro coach that learns from your feedback.</h1>
+      <p style="color:{C['muted']};font-size:1.05rem;max-width:58ch;line-height:1.6;">
+        Track macros, get food recommendations from a model measured against baselines,
+        plan meals in natural language, and watch your targets adapt — quietly, elegantly.
+      </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
-st.markdown("")
-cols = st.columns(3)
+st.markdown('<hr class="mm-rule">', unsafe_allow_html=True)
+
 FEATURES = [
-    ("📊", "Dashboard", "Track today's calories & macros at a glance."),
-    ("💬", "Chat", "Ask the AI to build a meal plan from your remaining macros."),
-    ("🎯", "Optimize", "Get the best foods for your next meal via ML."),
-    ("📍", "Restaurants", "Find nearby spots with macro-friendly menu items."),
-    ("🛒", "Grocery", "Turn a meal plan into a categorized shopping list."),
-    ("⚖️", "Body & TDEE", "Log weight and watch your targets adapt."),
+    ("grid", "Dashboard", "Today's energy and macros, at a glance."),
+    ("message", "Chat", "Describe what you want; get a meal plan."),
+    ("target", "Optimize", "The best next foods for your remaining budget."),
+    ("pin", "Restaurants", "Nearby menus ranked to your macros."),
+    ("cart", "Grocery", "Turn a plan into a categorized list."),
+    ("scale", "Body & TDEE", "Log weight; targets recalculate."),
 ]
-for i, (emoji, title, desc) in enumerate(FEATURES):
+cols = st.columns(3, gap="medium")
+for i, (ic, title, desc) in enumerate(FEATURES):
     with cols[i % 3]:
         st.markdown(
-            f"""<div class="mm-card" style="min-height:130px;">
-                  <div style="font-size:2rem;">{emoji}</div>
-                  <div style="font-weight:700;font-size:1.1rem;color:{helpers.COLORS['text']};">{title}</div>
-                  <div class="mm-metric-sub">{desc}</div>
-                </div>""",
+            f"""
+            <div class="mm-card" style="min-height:132px;">
+              <div class="mm-head-ic" style="width:38px;height:38px;border-radius:10px;">{helpers.icon(ic, 19)}</div>
+              <div style="font-weight:600;font-size:1.05rem;margin:.7rem 0 .25rem;color:{C['text']};">{title}</div>
+              <div class="mm-sub">{desc}</div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
-st.divider()
+st.markdown('<hr class="mm-rule">', unsafe_allow_html=True)
 st.markdown(
     f"""
-    <div class="mm-card" style="border-left:6px solid {helpers.COLORS['secondary']};">
-      <b>Getting started</b>
-      <ol style="margin:.4rem 0 0 1rem;color:{helpers.COLORS['text']};">
-        <li>Pick or create a user in the sidebar 👤</li>
-        <li>Open the <b>Dashboard</b> to see today's targets</li>
-        <li>Use <b>Chat</b> or <b>Optimize</b> to plan meals, then log them</li>
+    <div class="mm-card" style="border-left:3px solid {C['accent']};">
+      <div class="mm-eyebrow">Getting started</div>
+      <ol style="margin:.6rem 0 0 1.1rem;color:{C['text']};line-height:1.9;">
+        <li>Pick or create a profile in the sidebar.</li>
+        <li>Open <b>Dashboard</b> to see today's targets.</li>
+        <li>Use <b>Chat</b> or <b>Optimize</b> to plan a meal, then log it.</li>
       </ol>
     </div>
     """,
     unsafe_allow_html=True,
 )
-st.caption(f"Currently viewing as **User #{user_id}** · {helpers.today_str()}")
+st.markdown(
+    f'<p class="mm-sub" style="margin-top:1rem;">Viewing profile {user_id} &middot; {helpers.today_str()}</p>',
+    unsafe_allow_html=True,
+)
