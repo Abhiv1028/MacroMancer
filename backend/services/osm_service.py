@@ -17,13 +17,18 @@ from backend.config import settings
 
 # Minimum seconds between Overpass calls (OSM fair-use policy).
 _MIN_INTERVAL_S = 1.0
-_throttle_lock = asyncio.Lock()
+# Created lazily inside the running loop -- a module-level asyncio.Lock() binds to
+# the current event loop at import time on Python <3.10 and breaks when the module
+# is imported from a thread with no loop (e.g. Streamlit's ScriptRunner).
+_throttle_lock = None
 _last_call_ts = 0.0
 
 
 async def _throttle() -> None:
     """Enforce >= 1s between Overpass requests across concurrent callers."""
-    global _last_call_ts
+    global _last_call_ts, _throttle_lock
+    if _throttle_lock is None:
+        _throttle_lock = asyncio.Lock()
     async with _throttle_lock:
         elapsed = time.monotonic() - _last_call_ts
         if elapsed < _MIN_INTERVAL_S:

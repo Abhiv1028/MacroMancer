@@ -3,8 +3,9 @@ title: Macromancer
 emoji: 🥗
 colorFrom: green
 colorTo: blue
-sdk: docker
-app_port: 8501
+sdk: streamlit
+app_file: frontend/app.py
+python_version: "3.11"
 pinned: false
 license: mit
 ---
@@ -804,32 +805,32 @@ docker run --rm -p 8000:8000 -p 8501:8501 -e SEED_DEMO=true macromancer
 
 ### Live demo — deploy free on Hugging Face Spaces (~5 min)
 
-The repo doubles as a **Docker Space**: the root `README.md` front-matter
-(`sdk: docker`, `app_port: 8501`) tells HF to build the `Dockerfile` and serve
-the UI. It's free (2 vCPU / 16 GB), no credit card, and gives a public URL.
+HF's free tier runs **Streamlit** SDK Spaces (no credit card; Docker Spaces are
+now paid). The repo is configured for it: the root `README.md` front-matter
+(`sdk: streamlit`, `app_file: frontend/app.py`), [`packages.txt`](packages.txt)
+(`libgomp1` + `tesseract-ocr`), and [`requirements.txt`](requirements.txt). When
+it detects it's on a Space (`SPACE_ID`), the Streamlit app **boots the FastAPI
+backend in a background thread** in the same process, so the whole stack runs in
+one free Space.
 
 ```bash
-# 1) Create a Space:  huggingface.co/new-space  → SDK: Docker → Blank
+# 1) Create a Space:  huggingface.co/new-space  → SDK: Streamlit → CPU basic (free)
 # 2) Push this repo to it (the Space is just another git remote):
 git remote add hf https://huggingface.co/spaces/<your-username>/macromancer
 git push hf main
-# 3) HF builds the Dockerfile and serves the UI at:
+# 3) HF installs deps and serves the app at:
 #    https://<your-username>-macromancer.hf.space
 ```
 
-Optional: add `NUTRITIONIX_APP_ID` / `NUTRITIONIX_API_KEY` as Space **Variables**
-to enable restaurant search. On the free tier storage is ephemeral — the demo
-re-seeds on restart, which is exactly what you want for a public demo.
+The demo seeds ~40 foods + a demo user on boot (`SEED_DEMO`), so it's usable
+immediately; storage is ephemeral (re-seeds on restart — ideal for a public
+demo). Optional: add `NUTRITIONIX_APP_ID` / `NUTRITIONIX_API_KEY` as Space
+**Variables** to enable restaurant search.
 
-**Notes:**
-- `MACROMANCER_API_URL=http://localhost:8000` — the UI reaches the backend
-  *inside* the container; HF exposes only the UI port (8501).
-- Mutable state lives under `/data` (`DATABASE_URL=sqlite:////data/...`,
-  `RL_BANDIT_PATH`). The XGBoost model ships in the image and loads on boot.
-- **Ollama** isn't bundled — chat degrades to a plain suggestion when it's
-  absent (connection-refused → fallback), so the cloud demo needs nothing extra.
-- Other Docker hosts (Render, Railway, a VPS) work from the same `Dockerfile`.
-  A legacy `fly.toml` is kept for reference, but Fly.io removed its free tier.
+> **Want a Docker-based deploy instead?** The `Dockerfile` runs the same stack
+> (backend + UI under `supervisord`) and works on any Docker host — Render,
+> Railway, Google Cloud Run, a VPS, or a paid HF Docker Space. A legacy
+> `fly.toml` is kept for reference (Fly.io removed its free tier).
 
 ## Screenshots
 

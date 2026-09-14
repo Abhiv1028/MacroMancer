@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from typing import Dict, List
 
@@ -99,7 +100,12 @@ def inject_css() -> None:
 
 
 def setup_page(title: str, icon: str = "🥗") -> None:
-    """Call at the top of every page: config + CSS + session init."""
+    """Call at the top of every page: config + CSS + session init.
+
+    On a Hugging Face Streamlit Space (or when EMBED_BACKEND is set) this also
+    boots the FastAPI backend in-process, so the whole app runs in one free
+    Space without a separate backend service.
+    """
     st.set_page_config(
         page_title=f"Macromancer · {title}",
         page_icon=icon,
@@ -108,6 +114,58 @@ def setup_page(title: str, icon: str = "🥗") -> None:
     )
     inject_css()
     init_state()
+    if os.getenv("SPACE_ID") or os.getenv("EMBED_BACKEND"):
+        _ensure_embedded_backend()
+
+
+@st.cache_resource(show_spinner="Starting Macromancer…")
+def _ensure_embedded_backend() -> bool:
+    """Run the FastAPI backend in a daemon thread (Hugging Face Spaces / embed).
+
+    Cached so it starts exactly once. The Streamlit ``api_client`` then talks to
+    it over ``http://localhost:8000`` inside the same process. Returns True when
+    the backend answers its health check.
+    """
+    import sys
+    import threading
+    import time
+
+    # Writable, demo-friendly defaults (must be set before importing backend).
+    os.environ.setdefault("SEED_DEMO", "true")
+    os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/macromentor.db")
+    os.environ.setdefault("RL_BANDIT_PATH", "/tmp/rl_bandit_weights.json")
+    os.environ.setdefault("DISABLE_RATELIMIT", "1")
+
+    # Repo root on the path so `import backend...` resolves.
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+    # Streamlit runs page scripts in a worker thread with no event loop; ensure
+    # one exists before importing backend modules (defensive).
+    import asyncio
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
+    import uvicorn
+    from backend.main import app as backend_app
+
+    class _Server(uvicorn.Server):
+        def install_signal_handlers(self) -> None:  # not the main thread
+            pass
+
+    server = _Server(
+        uvicorn.Config(backend_app, host="127.0.0.1", port=8000, log_level="warning")
+    )
+    threading.Thread(target=server.run, daemon=True).start()
+
+    for _ in range(120):  # wait up to ~60s for startup (model load + seed)
+        if api.health():
+            return True
+        time.sleep(0.5)
+    return False
 
 
 # --- session state --------------------------------------------------------- #
