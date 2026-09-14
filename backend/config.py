@@ -105,8 +105,29 @@ class Settings:
     RESTAURANT_MENU_TTL: int = int(os.getenv("RESTAURANT_MENU_TTL", str(7 * 86400)))
     IP_GEO_TTL: int = int(os.getenv("IP_GEO_TTL", "3600"))
 
-    # --- LLM (Ollama) ------------------------------------------------------
-    # Local Ollama server used for meal-plan generation (free, offline).
+    # --- LLM: hosted (cloud) or local (Ollama) ----------------------------
+    # Meal-plan generation works two ways:
+    #   * Hosted  — set LLM_API_KEY (e.g. a free Groq key). Used automatically
+    #     whenever a key is present, so the deployed demo works for everyone.
+    #   * Local   — no key => fall back to a local Ollama server (free/offline).
+    # The hosted path speaks the OpenAI-compatible /chat/completions protocol,
+    # so Groq / OpenAI / OpenRouter / Together all work by pointing LLM_BASE_URL
+    # + LLM_MODEL at the provider. Defaults target Groq's free tier.
+    LLM_API_KEY: str = os.getenv("LLM_API_KEY", "") or os.getenv("GROQ_API_KEY", "")
+    LLM_BASE_URL: str = os.getenv(
+        "LLM_BASE_URL", "https://api.groq.com/openai/v1/chat/completions"
+    )
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "45"))
+    LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "800"))
+    LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
+
+    @property
+    def LLM_HOSTED(self) -> bool:
+        """True when a hosted LLM key is configured (cloud path preferred)."""
+        return bool(self.LLM_API_KEY)
+
+    # Local Ollama server used for meal-plan generation when no hosted key is set.
     OLLAMA_BASE_URL: str = os.getenv(
         "OLLAMA_BASE_URL", "http://localhost:11434/api/generate"
     )

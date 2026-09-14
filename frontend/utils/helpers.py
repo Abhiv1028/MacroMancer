@@ -334,6 +334,16 @@ def _ensure_embedded_backend() -> bool:
     import threading
     import time
 
+    # Bridge Streamlit Cloud secrets -> env vars so the embedded FastAPI backend
+    # (which reads os.getenv) picks up LLM_API_KEY, NUTRITIONIX_*, etc. On
+    # Streamlit Cloud you set these in the app's "Secrets" settings.
+    try:
+        for key, value in st.secrets.items():
+            if isinstance(value, (str, int, float)):
+                os.environ.setdefault(key, str(value))
+    except Exception:
+        pass  # no secrets.toml locally — that's fine
+
     os.environ.setdefault("SEED_DEMO", "true")
     os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/macromentor.db")
     os.environ.setdefault("RL_BANDIT_PATH", "/tmp/rl_bandit_weights.json")

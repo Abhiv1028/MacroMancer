@@ -806,8 +806,28 @@ thread**, so one deploy runs the entire stack. It reads
    credit card.**
 
 The demo seeds ~40 foods + a demo user on boot (`SEED_DEMO`), so it's usable
-immediately. Optional: add `NUTRITIONIX_APP_ID` / `NUTRITIONIX_API_KEY` in the
-app's **Secrets** to enable restaurant search.
+immediately.
+
+**Enabling AI chat + restaurant search on the hosted demo.** Everything except
+the LLM works out of the box. Because a hosted container can't run a local
+Ollama server, the meal-plan **Chat** uses a hosted model when a key is present.
+Open your app → **⋮ → Settings → Secrets** and paste (see
+[`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example)):
+
+```toml
+# AI meal-plan chat — free Groq key from https://console.groq.com (no card)
+LLM_API_KEY = "gsk_..."
+
+# Nearby restaurants — free keys from https://developer.nutritionix.com
+NUTRITIONIX_APP_ID  = "..."
+NUTRITIONIX_API_KEY = "..."
+```
+
+The app bridges these secrets into environment variables for its embedded
+backend automatically — no code changes, no per-visitor setup. The Chat client
+speaks the OpenAI-compatible protocol, so you can point `LLM_BASE_URL` /
+`LLM_MODEL` at OpenAI, OpenRouter, or Together instead of Groq. Locally, with no
+key set, it falls back to a local Ollama server (`ollama serve`).
 
 > **Prefer a Docker-hosted demo?** The `Dockerfile` runs the same stack (backend
 > + UI under `supervisord`) on any Docker host — Render, Railway, Google Cloud

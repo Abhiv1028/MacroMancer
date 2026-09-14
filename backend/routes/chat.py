@@ -211,15 +211,18 @@ async def chat(
         assistant_message = meal_plan.get("explanation") or json.dumps(meal_plan)
     except LLMUnavailableError as exc:
         print(f"[chat] {exc}")
+        from backend.config import settings
+
+        llm_name = "The AI model" if settings.LLM_HOSTED else "Ollama"
         if recommendations:
             top = recommendations[0]
             assistant_message = (
-                f"Ollama unavailable. Here's the top suggestion: "
-                f"{top['name']} - {top['suggested_grams']}g."
+                f"{llm_name} is unavailable right now, but based on your remaining "
+                f"macros the top pick is {top['name']} — about {top['suggested_grams']}g."
             )
         else:
             assistant_message = (
-                "Ollama unavailable and no food suggestions are available. "
+                f"{llm_name} is unavailable and no food suggestions are available. "
                 "Add custom foods or load USDA data, then try again."
             )
         meal_plan = None

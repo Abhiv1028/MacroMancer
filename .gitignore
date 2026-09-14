@@ -22,3 +22,6 @@ server.log
 .coverage
 coverage.xml
 htmlcov/
+
+# Streamlit secrets (never commit real keys)
+.streamlit/secrets.toml
