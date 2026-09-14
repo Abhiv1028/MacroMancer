@@ -63,6 +63,40 @@ polished **Streamlit** dashboard — packaged to deploy as a single container.
 > with no authentication** — run it locally or behind your own auth; don't put
 > real personal data on a public deployment. See [Limitations](#limitations).
 
+## The one-liner
+
+**An adaptive macro coach that learns from your feedback.** Most trackers are
+passive logs; Macromancer closes the loop — it *recommends* the next food with an
+ML model, records how the day went (macro adherence + your ratings) as a
+**reward**, and a **contextual bandit** adapts which macro strategy it steers you
+toward. Everything else (LLM chat, grocery, restaurants, OCR) is a supporting
+feature around that loop.
+
+<details>
+<summary><b>The story behind the numbers</b> (worth a read)</summary>
+
+**Problem.** "What should I eat next to hit my macros?" is a ranking problem, but
+"best" is undefined without a metric.
+
+**Approach.** Frame it as: rank candidate foods by `P(this helps me hit target
+without overshooting)`, learned by XGBoost over 12 features (user + time +
+remaining budget + food macros + feedback).
+
+**Measure it honestly.** My first evaluation showed a **dumb popularity baseline
+beating the model**. Instead of hiding that, I diagnosed it — a train/inference
+scale mismatch, and the model never saw the tight end-of-day budgets where
+overshoot matters. I realigned the training distribution, retrained, and the
+model now **beats random, popularity, and a hand-crafted heuristic** on
+precision@5 / NDCG@5 / MAP with non-overlapping 95% CIs. Full numbers +
+methodology: [evaluation](#recommender-problem-model--evaluation) ·
+[model card](docs/MODEL_CARD.md).
+
+**What I'd do next.** Real-user logs (the objective is only weakly
+context-dependent on synthetic data), per-user bandits, and off-policy
+evaluation — see [Limitations](#limitations).
+
+</details>
+
 ## ✨ What it does
 
 **Phase 1** —
@@ -234,8 +268,10 @@ base rate is high (≈0.82, hence `random`'s precision@5 ≈ 0.82) — NDCG and 
 the ranking quality more cleanly; and evaluation uses simulated contexts (real
 foods), so treat it as a controlled generalization test, not a field trial.
 
-Reproduce: `python -m scripts.evaluate_recommender` (chart needs `pip install
-matplotlib`). See [scripts/evaluate_recommender.py](scripts/evaluate_recommender.py).
+Reproduce: `make eval` (or `python -m scripts.evaluate_recommender`; chart needs
+`pip install matplotlib`). Full details in the
+**[model card](docs/MODEL_CARD.md)** and
+[scripts/evaluate_recommender.py](scripts/evaluate_recommender.py).
 
 ## 🚀 Quick start
 
@@ -279,7 +315,8 @@ macromancer/
 │                            #   nearby_optimizer
 ├── scripts/
 │   ├── retrain_rl.py        # offline bandit re-fit from transitions (Phase 6)
-│   └── deploy.sh            # Fly.io deploy helper (Phase 9)
+│   ├── evaluate_recommender.py  # ML eval vs baselines (precision@k/NDCG/MAP)
+│   └── deploy.sh            # legacy Fly.io deploy helper
 ├── frontend/                # Phase 8 Streamlit dashboard
 │   ├── app.py               #   landing page
 │   ├── api_client.py        #   backend API wrapper
@@ -287,19 +324,26 @@ macromancer/
 │   ├── pages/               #   Dashboard, Chat, Optimize, Restaurants, Grocery, Feedback, Body
 │   ├── utils/helpers.py     #   theme, CSS, sidebar, session helpers
 │   └── run.sh
-├── Dockerfile               # Phase 9: single-container backend + frontend
+├── Dockerfile               # single-container backend + frontend (HF-ready)
+├── docker-compose.yml       # one-command local run
 ├── supervisord.conf         #   runs both services
-├── fly.toml                 #   Fly.io app config + volume + vm
-├── .dockerignore
-├── .github/workflows/fly-deploy.yml   # CI auto-deploy on push to main
+├── Makefile                 # make setup/run/ui/test/cov/eval/docker
+├── .dockerignore · fly.toml # (fly.toml kept for reference)
+├── .github/workflows/       # test.yml (CI) + fly-deploy.yml
+├── docs/
+│   ├── MODEL_CARD.md        # recommender model card
+│   └── screenshots/
 ├── data/
 │   ├── download_usda.py     # download + parse + load USDA CSVs
-│   ├── food_categories.json # grocery aisle keywords (Phase 4)
+│   ├── food_categories.json # grocery aisle keywords
+│   ├── seed_foods.json      # demo seed foods
 │   └── synthetic_data_generator.py
 ├── ml/
 │   ├── train_model.py
-│   └── xgboost_macro_model.json   # generated
-├── tests/                   # pytest suite (macros, api, chat)
+│   ├── xgboost_macro_model.json   # generated
+│   └── eval_results.{json,png}    # evaluation output
+├── tests/                   # 19 pytest suites
+├── CONTRIBUTING.md · LICENSE
 ├── requirements.txt
 ├── run.py                   # uvicorn wrapper
 └── test_api.py              # end-to-end smoke test
@@ -786,6 +830,21 @@ re-seeds on restart, which is exactly what you want for a public demo.
   absent (connection-refused → fallback), so the cloud demo needs nothing extra.
 - Other Docker hosts (Render, Railway, a VPS) work from the same `Dockerfile`.
   A legacy `fly.toml` is kept for reference, but Fly.io removed its free tier.
+
+## Screenshots
+
+The recommender evaluation (real output of `make eval`):
+
+<div align="center"><img src="ml/eval_results.png" alt="Recommender vs baselines" width="560"></div>
+
+<!-- PRODUCT SCREENSHOTS: drop PNGs in docs/screenshots/ and uncomment this block.
+<div align="center">
+  <img src="docs/screenshots/dashboard.png" width="45%" alt="Dashboard">
+  <img src="docs/screenshots/optimize.png"  width="45%" alt="Optimize">
+  <img src="docs/screenshots/chat.png"      width="45%" alt="Chat meal planning">
+  <img src="docs/screenshots/body.png"      width="45%" alt="Body composition & TDEE">
+</div>
+-->
 
 ## Frontend (Streamlit)
 
