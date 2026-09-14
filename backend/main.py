@@ -33,13 +33,18 @@ async def lifespan(app: FastAPI):
     init_db()
 
     with session_scope() as db:
-        food_count = db.query(func.count(Food.id)).scalar() or 0
         # Seed the fixed RL action space (idempotent).
         from backend.services.rl_actions import seed_actions
 
         seeded = seed_actions(db)
         if seeded:
             print(f"[startup] Seeded {seeded} RL actions.")
+        # Optionally seed a demo dataset (foods + demo user) for the live demo.
+        if settings.SEED_DEMO:
+            from backend.services.demo_seed import seed_demo
+
+            seed_demo(db)
+        food_count = db.query(func.count(Food.id)).scalar() or 0
     print(f"[startup] Database ready. Foods loaded: {food_count}")
     if food_count == 0:
         print(

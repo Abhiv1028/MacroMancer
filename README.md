@@ -1,3 +1,14 @@
+---
+title: Macromancer
+emoji: 🥗
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 8501
+pinned: false
+license: mit
+---
+
 <div align="center">
 
 # 🥗 Macromancer
@@ -9,9 +20,15 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-ML-EB5E28)](https://xgboost.readthedocs.io/)
 [![Tests](https://img.shields.io/badge/tests-174%20passing-27AE60)](#testing)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#deployment-docker--flyio)
-[![Deploy](https://img.shields.io/badge/deploy-Fly.io-8B5CF6)](#deployment-docker--flyio)
+[![Docker](https://img.shields.io/badge/Docker-compose%20up-2496ED?logo=docker&logoColor=white)](#deployment-docker)
+[![Hugging Face Spaces](https://img.shields.io/badge/live%20demo-%F0%9F%A4%97%20Spaces-FFD21E)](#live-demo--deploy-free-on-hugging-face-spaces-5-min)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+</div>
+
+<div align="center">
+
+**[▶️ Run it in one command](#deployment-docker)** &nbsp;·&nbsp; **[🤗 Deploy a free live demo in ~5 min](#live-demo--deploy-free-on-hugging-face-spaces-5-min)** &nbsp;·&nbsp; **[📊 See the evaluation](#testing)**
 
 </div>
 
@@ -657,57 +674,61 @@ python -m scripts.retrain_rl
 # -> [retrain_rl] Replayed N transitions ...; saved bandit -> data/rl_bandit_weights.json
 ```
 
-## Deployment (Docker + Fly.io)
+## Deployment (Docker)
 
 Both services ship in **one container**: the FastAPI backend (`:8000`) and the
 Streamlit UI (`:8501`) run under `supervisord`. Public traffic hits the UI; the
-UI calls the backend at `http://localhost:8000` inside the machine.
+UI calls the backend at `http://localhost:8000` inside the container. The image
+runs as a non-root user and installs only runtime libs (`libgomp1` for XGBoost,
+`tesseract-ocr` for OCR) — no build toolchain, so it stays lean.
 
-**Files**: [Dockerfile](Dockerfile) · [supervisord.conf](supervisord.conf) ·
-[fly.toml](fly.toml) · [.dockerignore](.dockerignore) ·
-[scripts/deploy.sh](scripts/deploy.sh) ·
-[.github/workflows/fly-deploy.yml](.github/workflows/fly-deploy.yml)
+**Files**: [Dockerfile](Dockerfile) · [docker-compose.yml](docker-compose.yml) ·
+[supervisord.conf](supervisord.conf) · [.dockerignore](.dockerignore)
 
-### Run locally with Docker
+### Run the whole stack in one command
 
 ```bash
-docker build -t macromancer .
-docker run --rm -p 8000:8000 -p 8501:8501 macromancer
+docker compose up --build
 # UI:  http://localhost:8501     API: http://localhost:8000/docs
 ```
 
-The image installs `libomp-dev` (XGBoost), `tesseract-ocr` (OCR), and build
-tools, so all phases work out of the box.
-
-### Deploy to Fly.io (free tier)
+`SEED_DEMO=true` (set in compose) seeds ~40 foods and a demo user on first boot,
+so the app is immediately usable. The SQLite DB and RL weights persist in a named
+volume (`/data`). Plain `docker run` works too:
 
 ```bash
-flyctl auth login
-flyctl launch --no-deploy          # create the app from fly.toml
-flyctl volumes create macromentor_data --size 1   # 1 GB persistent volume -> /persistent
-flyctl secrets set NUTRITIONIX_APP_ID=... NUTRITIONIX_API_KEY=...   # optional (restaurant search)
-flyctl deploy
-flyctl open
-# …or just:  ./scripts/deploy.sh   (does all of the above)
+docker build -t macromancer .
+docker run --rm -p 8000:8000 -p 8501:8501 -e SEED_DEMO=true macromancer
 ```
 
-Push to `main` auto-deploys via GitHub Actions once you add a `FLY_API_TOKEN`
-repo secret (`flyctl tokens create deploy`).
+### Live demo — deploy free on Hugging Face Spaces (~5 min)
 
-**What persists** (on the `/persistent` volume): the SQLite database
-(`DATABASE_URL=sqlite:////persistent/macromentor.db`) and the RL bandit weights
-(`RL_BANDIT_PATH`). The XGBoost model ships in the image and loads on boot.
+The repo doubles as a **Docker Space**: the root `README.md` front-matter
+(`sdk: docker`, `app_port: 8501`) tells HF to build the `Dockerfile` and serve
+the UI. It's free (2 vCPU / 16 GB), no credit card, and gives a public URL.
 
-**Notes & deviations from a naive setup:**
+```bash
+# 1) Create a Space:  huggingface.co/new-space  → SDK: Docker → Blank
+# 2) Push this repo to it (the Space is just another git remote):
+git remote add hf https://huggingface.co/spaces/<your-username>/macromancer
+git push hf main
+# 3) HF builds the Dockerfile and serves the UI at:
+#    https://<your-username>-macromancer.hf.space
+```
+
+Optional: add `NUTRITIONIX_APP_ID` / `NUTRITIONIX_API_KEY` as Space **Variables**
+to enable restaurant search. On the free tier storage is ephemeral — the demo
+re-seeds on restart, which is exactly what you want for a public demo.
+
+**Notes:**
 - `MACROMANCER_API_URL=http://localhost:8000` — the UI reaches the backend
-  *inside* the container. The public `https://<app>.fly.dev` serves the **UI**
-  (8501), which is the only exposed port; pointing the UI at the public URL would
-  loop it back to itself, so we don't.
-- **Ollama** isn't installed on the free tier — the chat endpoint already
-  degrades to a plain suggestion on connection-refused, so no Ollama is fine
-  (`DISABLE_OLLAMA=true` is set for intent/forward-compat).
-- The ML stack needs more than Fly's default 256 MB; `fly.toml` sets **1 GB**
-  (`[[vm]] memory`). Lower it at your own risk.
+  *inside* the container; HF exposes only the UI port (8501).
+- Mutable state lives under `/data` (`DATABASE_URL=sqlite:////data/...`,
+  `RL_BANDIT_PATH`). The XGBoost model ships in the image and loads on boot.
+- **Ollama** isn't bundled — chat degrades to a plain suggestion when it's
+  absent (connection-refused → fallback), so the cloud demo needs nothing extra.
+- Other Docker hosts (Render, Railway, a VPS) work from the same `Dockerfile`.
+  A legacy `fly.toml` is kept for reference, but Fly.io removed its free tier.
 
 ## Frontend (Streamlit)
 

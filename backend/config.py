@@ -64,6 +64,10 @@ class Settings:
         "yes",
     )
 
+    # Seed a small demo dataset (foods + a demo user) on startup when the DB is
+    # empty. Enabled in the Docker/HF demo image so the live URL is never blank.
+    SEED_DEMO: bool = os.getenv("SEED_DEMO", "").lower() in ("1", "true", "yes")
+
     # --- Optimizer ---------------------------------------------------------
     # Foods above this many calories per 100g are excluded from the default
     # candidate pool for practicality.

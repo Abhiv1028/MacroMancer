@@ -10,6 +10,7 @@ data/*.csv
 data/*.zip
 data/*.json
 !data/food_categories.json   # required by the grocery categorizer + tests
+!data/seed_foods.json        # demo seed data for the Docker/HF live demo
 rl_bandit_weights.json
 frontend/.streamlit/
 ollama.log

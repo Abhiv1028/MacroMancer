@@ -1,0 +1,17 @@
+# One-command local run of the full stack (backend + frontend in one container).
+#   docker compose up --build
+#   UI:  http://localhost:8501     API: http://localhost:8000/docs
+services:
+  macromancer:
+    build: .
+    image: macromancer:latest
+    ports:
+      - "8000:8000"   # FastAPI backend + Swagger docs
+      - "8501:8501"   # Streamlit dashboard
+    environment:
+      - SEED_DEMO=true
+    volumes:
+      - macromancer_data:/data   # persists the SQLite DB + RL weights locally
+
+volumes:
+  macromancer_data:
