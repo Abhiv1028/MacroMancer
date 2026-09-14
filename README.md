@@ -19,7 +19,7 @@ license: mit
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-ML-EB5E28)](https://xgboost.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-174%20passing-27AE60)](#testing)
+[![Tests](https://img.shields.io/badge/tests-178%20passing-27AE60)](#testing)
 [![Docker](https://img.shields.io/badge/Docker-compose%20up-2496ED?logo=docker&logoColor=white)](#deployment-docker)
 [![Hugging Face Spaces](https://img.shields.io/badge/live%20demo-%F0%9F%A4%97%20Spaces-FFD21E)](#live-demo--deploy-free-on-hugging-face-spaces-5-min)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -28,7 +28,7 @@ license: mit
 
 <div align="center">
 
-**[▶️ Run it in one command](#deployment-docker)** &nbsp;·&nbsp; **[🤗 Deploy a free live demo in ~5 min](#live-demo--deploy-free-on-hugging-face-spaces-5-min)** &nbsp;·&nbsp; **[📊 See the evaluation](#testing)**
+**[▶️ Run it in one command](#deployment-docker)** &nbsp;·&nbsp; **[🤗 Deploy a free live demo in ~5 min](#live-demo--deploy-free-on-hugging-face-spaces-5-min)** &nbsp;·&nbsp; **[📊 See the evaluation](#recommender-problem-model--evaluation)**
 
 </div>
 
@@ -44,7 +44,7 @@ consumer-grade **Streamlit** dashboard — packaged to deploy as a single contai
 | 📊 | Metric | | 📊 | Metric |
 |---|---|---|---|---|
 | **9** | phases (data → ML → LLM → RL → UI → deploy) | | **36** | REST endpoints |
-| **174** | passing tests (17 suites) | | **27** | database models |
+| **178** | passing tests (18 suites) | | **27** | database models |
 | **25** | backend services | | **~8.3k** | lines of Python (66 files) |
 | **12-feature** | XGBoost recommender | | **LinUCB** | online RL bandit |
 
@@ -56,12 +56,6 @@ consumer-grade **Streamlit** dashboard — packaged to deploy as a single contai
 ## ✨ What it does
 
 **Phase 1** —
-- Loads USDA FoodData Central **Foundation Foods** into SQLite.
-- Computes daily macro targets (Mifflin–St Jeor + goal/activity factors).
-- Logs meals and derives their macros/calories automatically.
-- Recommends the best next foods for your remaining macro budget using an
-  **XGBoost** classifier trained on synthetic data (and retrainable from your
-  real meal logs).
 - Loads USDA FoodData Central **Foundation Foods** into SQLite.
 - Computes daily macro targets (Mifflin–St Jeor + goal/activity factors).
 - Logs meals and derives their macros/calories automatically.
@@ -183,7 +177,55 @@ underperforms.
 | **External (free)** | OpenStreetMap Overpass · Nutritionix · ip-api.com |
 | **Resilience** | slowapi (rate limiting) · cachetools (TTL caches) · BackgroundTasks |
 | **Frontend** | Streamlit · Plotly · custom CSS |
-| **DevOps** | Docker · supervisord · Fly.io · GitHub Actions |
+| **DevOps** | Docker · supervisord · Hugging Face Spaces · GitHub Actions |
+
+## Recommender: problem, model & evaluation
+
+**Problem formulation.** At a *decision point* — a user's context plus how much
+they've already eaten today — rank candidate foods for the next meal. A food is
+**relevant** if a standard serving moves the day's macros toward target *without
+overshooting* any macro by more than 20%. This is a binary ranking/classification
+task; the model outputs P(relevant) and foods are ranked by it.
+
+**Model.** An `XGBoost` classifier over **12 features**:
+
+| group | features |
+|---|---|
+| user | `goal` (cut/maintain/bulk), `activity_level` |
+| time | `hour_of_day`, `day_of_week` |
+| remaining budget | `protein_ratio`, `carbs_ratio`, `fat_ratio` (eaten ÷ target) |
+| candidate food | `protein/100g`, `carbs/100g`, `fat/100g`, `calories/100g` |
+| preference | `avg_feedback_score` (per-user/food, neutral 3.0 when unrated) |
+
+Trained on ~6k simulated decision points spanning the full eaten-fraction range
+(so it sees tight end-of-day budgets where overshoot matters), then retrainable
+online from real logs.
+
+**Evaluation.** Held-out contexts + a pool of **42 real foods the model never
+trained on**, vs three baselines: `random` (floor), `popularity` (rank by each
+food's marginal relevance rate — context-free), and `macro_fit` (a no-ML
+heuristic: rank by remaining-macro error reduction). Metrics are averaged over
+800 decision points with **bootstrap 95% CIs**.
+
+| Method | precision@5 | NDCG@5 | MAP |
+|---|---|---|---|
+| random | 0.815 [0.80, 0.83] | 0.819 [0.80, 0.84] | 0.833 [0.82, 0.85] |
+| popularity | 0.955 [0.94, 0.97] | 0.959 [0.95, 0.97] | 0.952 [0.94, 0.96] |
+| macro_fit (heuristic) | 0.911 [0.90, 0.92] | 0.932 [0.92, 0.94] | 0.918 [0.91, 0.92] |
+| **XGBoost (ours)** | **0.982 [0.97, 0.99]** | **0.984 [0.98, 0.99]** | **0.981 [0.97, 0.99]** |
+
+<div align="center"><img src="ml/eval_results.png" alt="Recommender vs baselines" width="620"></div>
+
+The learned model beats random, a strong popularity baseline, and the hand-crafted
+heuristic on all three ranking metrics with non-overlapping CIs — largely because
+it learns the **overshoot penalty** that pure error-reduction (`macro_fit`)
+ignores. Honest caveats: the objective is only weakly context-dependent, so the
+base rate is high (≈0.82, hence `random`'s precision@5 ≈ 0.82) — NDCG and MAP show
+the ranking quality more cleanly; and evaluation uses simulated contexts (real
+foods), so treat it as a controlled generalization test, not a field trial.
+
+Reproduce: `python -m scripts.evaluate_recommender` (chart needs `pip install
+matplotlib`). See [scripts/evaluate_recommender.py](scripts/evaluate_recommender.py).
 
 ## 🚀 Quick start
 
@@ -338,14 +380,14 @@ Environment overrides: `HOST`, `PORT`, `RELOAD=true`.
 
 ## Testing
 
-**174 tests across 17 suites** cover macro math, the ML optimizer, the LLM chat
+**178 tests across 18 suites** cover macro math, the ML optimizer, the LLM chat
 fallback, OCR/fuzzy matching, the full RL loop (reward → bandit → online learning
 → evaluation), caching/rate-limiting, and every route. They run with **no running
 server, no network, and no libomp required** — external services are mocked and
 the one optimizer test auto-skips if XGBoost can't load.
 
 ```bash
-pytest -q          # -> 174 passed
+pytest -q          # -> 178 passed
 ```
 
 Coverage by area:
