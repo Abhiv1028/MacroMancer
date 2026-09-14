@@ -270,7 +270,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
 python run.py                    # backend  -> http://localhost:8000/docs
-streamlit run frontend/app.py    # dashboard -> http://localhost:8501
+streamlit run frontend/Home.py    # dashboard -> http://localhost:8501
 ```
 
 The XGBoost model auto-trains on first start; USDA data, Ollama, Tesseract, and
@@ -307,7 +307,7 @@ macromancer/
 │   ├── evaluate_recommender.py  # ML eval vs baselines (precision@k/NDCG/MAP)
 │   └── deploy.sh            # legacy Fly.io deploy helper
 ├── frontend/                # Phase 8 Streamlit dashboard
-│   ├── app.py               #   landing page
+│   ├── Home.py              #   landing page
 │   ├── api_client.py        #   backend API wrapper
 │   ├── components/          #   macro_progress, meal_card, chat_message, restaurant_card
 │   ├── pages/               #   Dashboard, Chat, Optimize, Restaurants, Grocery, Feedback, Body
@@ -801,7 +801,7 @@ thread**, so one deploy runs the entire stack. It reads
 
 1. Push this repo to GitHub (done).
 2. Go to **[share.streamlit.io](https://share.streamlit.io)** → **New app** →
-   pick your repo, branch `main`, **main file `frontend/app.py`** → **Deploy**.
+   pick your repo, branch `main`, **main file `frontend/Home.py`** → **Deploy**.
 3. You get a public URL like `https://<app-name>.streamlit.app`. **Free, no
    credit card.**
 
@@ -836,10 +836,10 @@ A beautiful multi-page dashboard that wraps the whole backend — for non-develo
 ```bash
 pip install -r requirements.txt          # adds streamlit + plotly
 python run.py                            # 1) start the backend (port 8000)
-streamlit run frontend/app.py            # 2) start the UI  -> http://localhost:8501
+streamlit run frontend/Home.py            # 2) start the UI  -> http://localhost:8501
 # or: ./frontend/run.sh
 # point the UI at a remote backend:
-MACROMANCER_API_URL=http://my-host:8000 streamlit run frontend/app.py
+MACROMANCER_API_URL=http://my-host:8000 streamlit run frontend/Home.py
 ```
 
 **Pages** (sidebar has a user selector + live quick stats): **Dashboard**

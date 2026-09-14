@@ -14,30 +14,31 @@ import api_client as api
 # Palette — a single cohesive scheme (deep sage accent + warm neutrals)
 # --------------------------------------------------------------------------- #
 COLORS = {
-    "bg": "#F3F2EE",        # warm ivory (app background)
+    "bg": "#F1F5EF",        # fresh whisper-green ivory (app background)
     "surface": "#FFFFFF",   # cards / sidebar / inputs
-    "surface_2": "#FBFAF7", # subtle raised surface
-    "text": "#1E211D",      # warm charcoal
-    "muted": "#6B6A63",     # secondary text
-    "faint": "#9A988F",     # tertiary text
-    "border": "#E6E4DD",    # hairline borders
-    "accent": "#46584A",    # the single accent (sage)
-    "accent_600": "#3A4A3E",# darker accent (hover / hero)
-    "tint": "#EAEEE9",      # accent wash (tracks, soft fills)
-    "warn": "#B4785B",      # restrained clay (over-budget only)
+    "surface_2": "#F3F8F2", # subtle green-raised surface
+    "text": "#15251B",      # deep forest charcoal
+    "muted": "#586B5C",     # secondary text (green-grey)
+    "faint": "#8FA091",     # tertiary text
+    "border": "#E0E9DD",    # green-tinted hairline
+    "accent": "#1E7A4B",    # the living emerald accent
+    "accent_600": "#155C39",# deep emerald (hover / hero)
+    "accent_bright": "#37B96B",  # vivid fresh green (gradients / highlights)
+    "tint": "#E4F1E7",      # soft green wash (tracks, chips)
+    "warn": "#C0824F",      # restrained clay (over-budget only)
     # legacy aliases (kept so components/pages don't break)
-    "primary": "#46584A",
-    "secondary": "#2E3A31",
-    "success": "#46584A",
-    "warning": "#B4785B",
+    "primary": "#1E7A4B",
+    "secondary": "#155C39",
+    "success": "#1E7A4B",
+    "warning": "#C0824F",
 }
 
-# Subtle tonal variations of the accent — cohesive, not rainbow.
+# Fresh, healthy greens — distinct enough to read, harmonious as a family.
 MACRO_COLORS = {
-    "calories": "#3A4A3E",
-    "protein": "#46584A",
-    "carbs": "#5E7060",
-    "fat": "#7C8A76",
+    "calories": "#1E7A4B",
+    "protein": "#2E9E5B",
+    "carbs": "#5FB56A",
+    "fat": "#94C46E",
 }
 
 
@@ -129,9 +130,11 @@ def inject_css() -> None:
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         :root {{
-            --bg:{c['bg']}; --surface:{c['surface']}; --text:{c['text']};
-            --muted:{c['muted']}; --faint:{c['faint']}; --border:{c['border']};
-            --accent:{c['accent']}; --accent-600:{c['accent_600']}; --tint:{c['tint']};
+            --bg:{c['bg']}; --surface:{c['surface']}; --surface-2:{c['surface_2']};
+            --text:{c['text']}; --muted:{c['muted']}; --faint:{c['faint']}; --border:{c['border']};
+            --accent:{c['accent']}; --accent-600:{c['accent_600']};
+            --accent-bright:{c['accent_bright']}; --tint:{c['tint']}; --warn:{c['warn']};
+            --grad:linear-gradient(135deg, {c['accent']} 0%, {c['accent_bright']} 100%);
         }}
 
         html, body, [class*="css"], .stApp, [data-testid="stAppViewContainer"] {{
@@ -154,8 +157,9 @@ def inject_css() -> None:
 
         /* Page header */
         .mm-head {{ display:flex; align-items:center; gap:.85rem; margin-bottom:.35rem; }}
-        .mm-head-ic {{ width:42px; height:42px; border-radius:12px; background:var(--tint);
-            color:var(--accent); display:flex; align-items:center; justify-content:center; flex:none; }}
+        .mm-head-ic {{ width:42px; height:42px; border-radius:12px; background:var(--grad);
+            color:#F6FBF6; display:flex; align-items:center; justify-content:center; flex:none;
+            box-shadow:0 3px 10px -3px rgba(30,122,75,.45); }}
         .mm-head h1 {{ margin:0; line-height:1.1; }}
         .mm-head-sub {{ color:var(--muted); font-size:.92rem; margin:.15rem 0 0; }}
         .mm-rule {{ height:1px; background:var(--border); border:0; margin:1.4rem 0 1.8rem; }}
@@ -196,12 +200,14 @@ def inject_css() -> None:
             border-radius:11px; font-weight:500; font-size:.9rem; padding:.5rem 1.1rem;
             border:1px solid var(--border); background:var(--surface); color:var(--text);
             transition:all .18s ease; box-shadow:none; }}
-        .stButton>button:hover, .stFormSubmitButton>button:hover {{ border-color:var(--accent); color:var(--accent); background:var(--surface_2); }}
+        .stButton>button:hover, .stFormSubmitButton>button:hover {{ border-color:var(--accent); color:var(--accent); background:var(--surface-2); }}
         .stButton>button[kind="primary"], .stFormSubmitButton>button[kind="primary"],
         button[data-testid="baseButton-primary"] {{
-            background:var(--accent); border:1px solid var(--accent); color:#F4F3EF; }}
+            background:var(--grad); border:1px solid var(--accent); color:#F6FBF6;
+            box-shadow:0 2px 10px -3px rgba(30,122,75,.5); }}
         .stButton>button[kind="primary"]:hover, button[data-testid="baseButton-primary"]:hover {{
-            background:var(--accent-600); border-color:var(--accent-600); color:#fff; }}
+            filter:brightness(1.05); border-color:var(--accent-600); color:#fff;
+            box-shadow:0 6px 18px -4px rgba(30,122,75,.6); transform:translateY(-1px); }}
 
         /* Inputs — explicit colors fix white-on-white */
         [data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"], .stTextArea textarea,
@@ -230,10 +236,12 @@ def inject_css() -> None:
         [data-testid="stMetricValue"] {{ color:var(--text); font-weight:600; letter-spacing:-.02em; }}
         [data-testid="stMetricLabel"] p {{ color:var(--muted) !important; font-weight:500; }}
 
-        /* Alerts — quiet, on-palette */
+        /* Alerts — on-palette, green (kills Streamlit's default blue/yellow/red fills) */
         [data-testid="stAlert"] {{ border-radius:12px; border:1px solid var(--border);
-            background:var(--surface_2); color:var(--text); }}
-        [data-testid="stAlert"] p {{ color:var(--text) !important; }}
+            border-left:3px solid var(--accent); background:var(--tint); color:var(--text); overflow:hidden; }}
+        [data-testid="stAlertContainer"] {{ background:transparent !important; }}
+        [data-testid="stAlert"] p, [data-testid="stAlert"] * {{ color:var(--text) !important; }}
+        [data-testid="stAlert"] svg {{ color:var(--accent) !important; fill:var(--accent) !important; }}
 
         /* Expander */
         [data-testid="stExpander"] {{ border:1px solid var(--border); border-radius:14px; background:var(--surface); }}
@@ -257,6 +265,14 @@ def inject_css() -> None:
         /* Sidebar */
         section[data-testid="stSidebar"] {{ background:var(--surface); border-right:1px solid var(--border); }}
         section[data-testid="stSidebar"] .block-container {{ padding:2rem 1.35rem; }}
+
+        /* Sidebar nav — recolor Streamlit's default blue active/hover to green */
+        [data-testid="stSidebarNav"] a {{ border-radius:9px; margin:1px 0; transition:all .15s ease; }}
+        [data-testid="stSidebarNav"] a span {{ color:var(--muted) !important; font-weight:500; }}
+        [data-testid="stSidebarNav"] a:hover {{ background:var(--surface-2) !important; }}
+        [data-testid="stSidebarNav"] a:hover span {{ color:var(--accent) !important; }}
+        [data-testid="stSidebarNav"] a[aria-current="page"] {{ background:var(--tint) !important; }}
+        [data-testid="stSidebarNav"] a[aria-current="page"] span {{ color:var(--accent-600) !important; font-weight:600; }}
         .mm-brand {{ display:flex; align-items:center; gap:.6rem; margin-bottom:.15rem; }}
         .mm-brand-name {{ font-size:1.15rem; font-weight:600; letter-spacing:-.02em; color:var(--text); }}
         .mm-brand-ic {{ color:var(--accent); display:flex; }}

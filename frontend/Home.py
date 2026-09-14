@@ -1,4 +1,4 @@
-"""Macromancer — Streamlit frontend entry point (landing)."""
+"""Macromancer — Streamlit frontend entry point (Home / landing)."""
 
 from __future__ import annotations
 

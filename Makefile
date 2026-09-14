@@ -18,7 +18,7 @@ run:  ## Start the FastAPI backend (http://localhost:8000/docs)
 	$(PY) run.py
 
 ui:  ## Start the Streamlit dashboard (http://localhost:8501)
-	$(PY) -m streamlit run frontend/app.py
+	$(PY) -m streamlit run frontend/Home.py
 
 test:  ## Run the test suite
 	$(PY) -m pytest -q
