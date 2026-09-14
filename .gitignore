@@ -17,3 +17,8 @@ frontend/.streamlit/
 ollama.log
 server.log
 *.pid
+
+# coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
