@@ -13,8 +13,10 @@ license: mit
 
 # 🥗 Macromancer
 
-### A personal, AI-driven nutrition optimizer — from macro tracking to a self-learning meal recommender, a conversational planner, restaurant search, and a polished dashboard.
+### A personal, ML-powered nutrition optimizer — macro tracking, a food recommender evaluated against baselines, a local-LLM meal planner, an online-learning RL loop, restaurant search, and a dashboard.
 
+[![CI](https://github.com/Abhiv1028/MacroMancer/actions/workflows/test.yml/badge.svg)](https://github.com/Abhiv1028/MacroMancer/actions/workflows/test.yml)
+[![coverage](https://img.shields.io/badge/coverage-82%25-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
@@ -37,7 +39,7 @@ loads real USDA food data, computes adaptive calorie/macro targets, recommends
 foods with a trained **XGBoost** model, plans meals with a **local LLM**, learns
 your preferences with a **contextual-bandit RL loop**, reads restaurant receipts
 via **OCR**, finds nearby restaurants on **free APIs**, and wraps it all in a
-consumer-grade **Streamlit** dashboard — packaged to deploy as a single container.
+polished **Streamlit** dashboard — packaged to deploy as a single container.
 
 <div align="center">
 
@@ -50,8 +52,16 @@ consumer-grade **Streamlit** dashboard — packaged to deploy as a single contai
 
 </div>
 
-> **Everything runs free & offline-first:** SQLite, local Ollama, OpenStreetMap,
-> and a free Nutritionix tier — no paid APIs required to run the core product.
+> **Free & mostly offline.** The core — macro tracking, targets, the XGBoost
+> recommender, and the RL loop — runs **fully offline** on SQLite with no keys.
+> Optional features use local/free services: chat needs a local **Ollama**, OCR
+> needs local **Tesseract**, and nearby search needs network + a free
+> **Nutritionix** key. Each degrades gracefully when its service is absent.
+>
+> ⚕️ **Not medical advice.** Macromancer is a personal/educational project. It
+> stores health-related data (weight, body fat, meals) **locally and unencrypted,
+> with no authentication** — run it locally or behind your own auth; don't put
+> real personal data on a public deployment. See [Limitations](#limitations).
 
 ## ✨ What it does
 
@@ -135,8 +145,8 @@ consumer-grade **Streamlit** dashboard — packaged to deploy as a single contai
 
 **Phase 9 (deployment)** —
 - Single-container **Docker** image (backend + frontend under `supervisord`),
-  **Fly.io** config with a persistent volume, and **GitHub Actions** CI. See
-  **Deployment**.
+  one-command **Docker Compose**, a free **Hugging Face Spaces** live demo, and
+  **GitHub Actions** CI (tests + coverage). See **Deployment**.
 
 ## Architecture
 
@@ -883,9 +893,30 @@ Mifflin-St Jeor on division-by-zero or implausible weight change (>5 kg/day).
 - **Protein**: 2.2 g/kg (cap 250 g). **Fat**: 0.8 g/kg (min 40 g).
   **Carbs**: `(calories − 4·protein − 9·fat) / 4`.
 
+## Limitations
+
+Honest scope — this is a portfolio/educational project, not a production service:
+
+- **No auth / not multi-tenant-safe.** Any client can read any `user_id`. Health
+  data is stored **unencrypted** in SQLite. Fine for local/demo use; add auth +
+  encryption before hosting real data.
+- **SQLite + single worker.** SQLite is a single-writer store, and the TTL caches
+  and `BackgroundTasks` live in-process — so run **one** Uvicorn worker. For real
+  scale, move to PostgreSQL + Redis + a task queue (the code isolates the DB layer
+  behind SQLAlchemy to make this swap straightforward).
+- **Evaluation uses simulated contexts** (with 42 real foods). It's a controlled
+  generalization test, not a user study — see
+  [Recommender evaluation](#recommender-problem-model--evaluation).
+- **RL bandit weights are global**, not per-user (one shared `LinUCB`). The
+  context vector personalizes selection, but learning is shared across users —
+  documented in [Reinforcement Learning](#reinforcement-learning-phase-6).
+- **`BackgroundTasks` aren't durable** (lost on restart, no retries); the demo
+  DB on Hugging Face is **ephemeral** (re-seeds on restart).
+- **Migrations:** schema is created with `create_all`; there's no Alembic yet, so
+  column changes to an existing DB need a manual migration.
+
 ## Notes
 
 - Database file: `macromentor.db` (SQLite) in the project root.
 - Model file: `ml/xgboost_macro_model.json`.
 - Python 3.9+ supported.
-```

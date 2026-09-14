@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: pytest + coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # GNU OpenMP runtime so XGBoost loads and its tests actually RUN
+      # (they auto-skip when it's missing — we don't want false-green CI).
+      - name: Install OpenMP runtime
+        run: sudo apt-get update && sudo apt-get install -y libgomp1
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest-cov
+
+      - name: Run tests with coverage
+        run: pytest -q --cov=backend --cov-report=term-missing --cov-fail-under=75
