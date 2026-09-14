@@ -1,8 +1,50 @@
-# Macromancer
+<div align="center">
 
-A personal, AI-driven nutrition optimizer (FastAPI backend).
+# 🥗 Macromancer
+
+### A personal, AI-driven nutrition optimizer — from macro tracking to a self-learning meal recommender, a conversational planner, restaurant search, and a polished dashboard.
+
+[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-ML-EB5E28)](https://xgboost.readthedocs.io/)
+[![Tests](https://img.shields.io/badge/tests-174%20passing-27AE60)](#testing)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#deployment-docker--flyio)
+[![Deploy](https://img.shields.io/badge/deploy-Fly.io-8B5CF6)](#deployment-docker--flyio)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+</div>
+
+Macromancer is a full-stack nutrition platform built across **9 phases** — it
+loads real USDA food data, computes adaptive calorie/macro targets, recommends
+foods with a trained **XGBoost** model, plans meals with a **local LLM**, learns
+your preferences with a **contextual-bandit RL loop**, reads restaurant receipts
+via **OCR**, finds nearby restaurants on **free APIs**, and wraps it all in a
+consumer-grade **Streamlit** dashboard — packaged to deploy as a single container.
+
+<div align="center">
+
+| 📊 | Metric | | 📊 | Metric |
+|---|---|---|---|---|
+| **9** | phases (data → ML → LLM → RL → UI → deploy) | | **36** | REST endpoints |
+| **174** | passing tests (17 suites) | | **27** | database models |
+| **25** | backend services | | **~8.3k** | lines of Python (66 files) |
+| **12-feature** | XGBoost recommender | | **LinUCB** | online RL bandit |
+
+</div>
+
+> **Everything runs free & offline-first:** SQLite, local Ollama, OpenStreetMap,
+> and a free Nutritionix tier — no paid APIs required to run the core product.
+
+## ✨ What it does
 
 **Phase 1** —
+- Loads USDA FoodData Central **Foundation Foods** into SQLite.
+- Computes daily macro targets (Mifflin–St Jeor + goal/activity factors).
+- Logs meals and derives their macros/calories automatically.
+- Recommends the best next foods for your remaining macro budget using an
+  **XGBoost** classifier trained on synthetic data (and retrainable from your
+  real meal logs).
 - Loads USDA FoodData Central **Foundation Foods** into SQLite.
 - Computes daily macro targets (Mifflin–St Jeor + goal/activity factors).
 - Logs meals and derives their macros/calories automatically.
@@ -79,6 +121,69 @@ A personal, AI-driven nutrition optimizer (FastAPI backend).
   Dashboard, Chat, Optimize, Restaurants, Grocery, Feedback, and Body/TDEE
   pages, with macro progress bars, chat bubbles, food cards, and a weight-trend
   chart. See **Frontend (Streamlit)**.
+
+**Phase 9 (deployment)** —
+- Single-container **Docker** image (backend + frontend under `supervisord`),
+  **Fly.io** config with a persistent volume, and **GitHub Actions** CI. See
+  **Deployment**.
+
+## Architecture
+
+```
+                         ┌──────────────────────────────────────────┐
+                         │        Streamlit UI  (port 8501)          │
+                         │  Dashboard · Chat · Optimize · Restaurants│
+                         │  Grocery · Feedback · Body/TDEE           │
+                         └───────────────────┬──────────────────────┘
+                                             │  HTTP (api_client)
+                         ┌───────────────────▼──────────────────────┐
+                         │         FastAPI backend (port 8000)       │
+                         │   rate-limiting · caching · BackgroundTasks│
+                         ├───────────────────────────────────────────┤
+     USDA CSV ─────────► │  macro engine · XGBoost optimizer         │ ◄─── synthetic
+     Ollama (LLM) ◄────► │  LLM meal planner · OCR · fuzzy matcher   │      training data
+     OSM + Nutritionix ◄►│  adaptive TDEE · feedback · RL bandit     │
+                         └───────────────────┬──────────────────────┘
+                                             │  SQLAlchemy ORM
+                                   ┌─────────▼─────────┐
+                                   │  SQLite  (27 models)│
+                                   └────────────────────┘
+```
+
+**ML/RL pipeline:** USDA + synthetic data → **XGBoost** food scorer (12 features,
+incl. a feedback signal) → **LinUCB contextual bandit** picks a macro strategy →
+per-day **reward** (macro adherence + feedback) → **online updates** + offline
+retraining → **A/B evaluation** with automatic fallback to XGBoost when RL
+underperforms.
+
+## Tech stack
+
+| Layer | Tools |
+|---|---|
+| **API** | FastAPI · Pydantic v2 · Uvicorn · SQLAlchemy 2.0 · SQLite |
+| **ML / RL** | XGBoost · scikit-learn · NumPy · pandas · custom LinUCB bandit |
+| **LLM / NLP** | Ollama (local, offline) · rapidfuzz · pytesseract (OCR) |
+| **External (free)** | OpenStreetMap Overpass · Nutritionix · ip-api.com |
+| **Resilience** | slowapi (rate limiting) · cachetools (TTL caches) · BackgroundTasks |
+| **Frontend** | Streamlit · Plotly · custom CSS |
+| **DevOps** | Docker · supervisord · Fly.io · GitHub Actions |
+
+## 🚀 Quick start
+
+```bash
+git clone https://github.com/Abhiv1028/macromancer.git && cd macromancer
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+python run.py                    # backend  -> http://localhost:8000/docs
+streamlit run frontend/app.py    # dashboard -> http://localhost:8501
+```
+
+The XGBoost model auto-trains on first start; USDA data, Ollama, Tesseract, and
+Nutritionix are all **optional** (each feature degrades gracefully without them).
+On macOS you may need `brew install libomp` for XGBoost — see
+[**OpenMP / libomp**](#openmp--libomp-required-by-xgboost). Prefer containers?
+Jump to [**Deployment**](#deployment-docker--flyio).
 
 ## Project structure
 
@@ -214,24 +319,34 @@ python run.py
 
 Environment overrides: `HOST`, `PORT`, `RELOAD=true`.
 
-## 4. Tests
+## Testing
 
-Unit + API tests (no running server, no network, no libomp required — the one
-optimizer test auto-skips if XGBoost can't load):
-
-```bash
-pytest -q
-```
-
-For a live end-to-end check against a running server:
+**174 tests across 17 suites** cover macro math, the ML optimizer, the LLM chat
+fallback, OCR/fuzzy matching, the full RL loop (reward → bandit → online learning
+→ evaluation), caching/rate-limiting, and every route. They run with **no running
+server, no network, and no libomp required** — external services are mocked and
+the one optimizer test auto-skips if XGBoost can't load.
 
 ```bash
-python run.py                           # in one terminal
-python test_api.py                      # in another (or --base-url http://host:port)
+pytest -q          # -> 174 passed
 ```
 
-`test_api.py` creates a user, adds custom foods, logs a meal, calls `/optimize`,
-and triggers `/train`.
+Coverage by area:
+
+| Suite | What it checks |
+|---|---|
+| `test_macros`, `test_safety` | Mifflin–St Jeor, clamping, input bounds (422 not 500) |
+| `test_api_endpoints`, `test_body_comp`, `test_tdee` | users, foods, meals, targets, adaptive TDEE |
+| `test_chat` | LLM meal planning + graceful fallback |
+| `test_grocery`, `test_nearby`, `test_ocr`, `test_menu_parser`, `test_food_matcher` | grocery lists, restaurants, OCR, fuzzy matching |
+| `test_rl_reward` · `test_rl_bandit` · `test_rl_online` · `test_rl_eval` | the full RL layer end-to-end |
+
+For a live smoke test against a running server:
+
+```bash
+python run.py                           # terminal 1
+python test_api.py                      # terminal 2  (create user → log meal → optimize → train)
+```
 
 ## API summary
 

@@ -9,6 +9,7 @@ __pycache__/
 data/*.csv
 data/*.zip
 data/*.json
+!data/food_categories.json   # required by the grocery categorizer + tests
 rl_bandit_weights.json
 frontend/.streamlit/
 ollama.log
