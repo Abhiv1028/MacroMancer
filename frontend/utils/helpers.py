@@ -114,17 +114,28 @@ def setup_page(title: str, icon: str = "🥗") -> None:
     )
     inject_css()
     init_state()
-    if os.getenv("SPACE_ID") or os.getenv("EMBED_BACKEND"):
-        _ensure_embedded_backend()
+    _backend_ready()
 
 
-@st.cache_resource(show_spinner="Starting Macromancer…")
+@st.cache_resource(show_spinner="Starting Macromancer… (first load can take ~30s)")
+def _backend_ready() -> bool:
+    """Ensure a backend is available: use an external one, else embed our own.
+
+    Runs once per session (cached). On hosted Streamlit (Community Cloud, a
+    Streamlit Space, etc.) no separate backend exists, so we boot the FastAPI app
+    in-process. Locally, if you've already started `python run.py`, that one is
+    used instead.
+    """
+    if api.health():
+        return True
+    return _ensure_embedded_backend()
+
+
 def _ensure_embedded_backend() -> bool:
-    """Run the FastAPI backend in a daemon thread (Hugging Face Spaces / embed).
+    """Run the FastAPI backend in a daemon thread, in this same process.
 
-    Cached so it starts exactly once. The Streamlit ``api_client`` then talks to
-    it over ``http://localhost:8000`` inside the same process. Returns True when
-    the backend answers its health check.
+    The Streamlit ``api_client`` then talks to it over ``http://localhost:8000``.
+    Returns True once the backend answers its health check.
     """
     import sys
     import threading
