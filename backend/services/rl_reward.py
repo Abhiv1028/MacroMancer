@@ -112,9 +112,10 @@ def _macro_adherence(targets, eaten: Dict[str, float]) -> float:
 def compute_reward(db: Session, user_id: int, day: date_cls) -> float:
     """Compute and persist the day's scalar reward for a user (idempotent).
 
-    ``reward = 0.5*macro_adherence + 0.3*feedback_avg + 0.2*satiety_norm`` with
-    every component in [0, 1]. Feedback components default to 0 when no feedback
-    was logged for the day.
+    ``reward = 0.5*macro_adherence + 0.3*feedback_avg + 0.2*satiety_norm`` where
+    ``feedback_avg`` = mean(enjoyment, energy)/5 (satiety is excluded here since
+    it has its own term) and ``satiety_norm`` = mean(satiety)/5. Every component
+    is in [0, 1]; feedback components default to 0 when no feedback was logged.
     """
     user = db.get(User, user_id)
     if user is None:
@@ -126,11 +127,10 @@ def compute_reward(db: Session, user_id: int, day: date_cls) -> float:
 
     feedbacks = _day_feedbacks(db, user_id, day)
     if feedbacks:
+        # Satiety is scored on its own (W_SATIETY term), so it's excluded here to
+        # avoid double-counting -- feedback_avg uses enjoyment + energy only.
         feedback_avg = float(
-            np.mean(
-                [(f.enjoyment + f.satiety + f.energy) / 3.0 for f in feedbacks]
-            )
-            / FEEDBACK_MAX
+            np.mean([(f.enjoyment + f.energy) / 2.0 for f in feedbacks]) / FEEDBACK_MAX
         )
         satiety_norm = float(np.mean([f.satiety for f in feedbacks]) / FEEDBACK_MAX)
     else:

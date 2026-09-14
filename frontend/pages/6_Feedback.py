@@ -11,20 +11,19 @@ helpers.setup_page("Feedback", icon="⭐")
 user_id = helpers.render_sidebar()
 
 st.markdown("# ⭐ Rate Your Meals")
-st.caption("Feedback improves your recommendations (and the RL reward). "
-           "Meals shown were logged during this session.")
+st.caption("Feedback improves your recommendations (and the RL reward).")
 
-meals = [m for m in st.session_state.today_meals if m.get("meal_log_id")]
+meals = helpers.todays_meals(user_id)
 if not meals:
-    st.info("No rateable meals yet. Log a meal from **Chat**, **Optimize**, or **Restaurants** first.")
+    st.info("No meals logged today. Log a meal from **Optimize**, **Chat**, or **Restaurants** first.")
     st.stop()
 
-labels = [f"{m.get('name','Meal')} · {m.get('meal_type','').title()}" for m in meals]
+labels = [f"{m.get('food_name','Meal')} · {m.get('meal_type','').title()}" for m in meals]
 idx = st.selectbox("Meal", range(len(meals)), format_func=lambda i: labels[i])
 meal = meals[idx]
 
 with st.form("feedback"):
-    st.markdown(f"**{meal.get('name','Meal')}**")
+    st.markdown(f"**{meal.get('food_name','Meal')}**")
     c1, c2, c3 = st.columns(3)
     enjoyment = c1.slider("😋 Enjoyment", 1, 5, 4)
     satiety = c2.slider("🍽️ Satiety", 1, 5, 4)
@@ -34,7 +33,7 @@ with st.form("feedback"):
     notes = st.text_area("Notes", placeholder="Anything to remember about this meal?")
     if st.form_submit_button("Submit feedback", type="primary", use_container_width=True):
         payload = {
-            "user_id": user_id, "meal_log_id": meal["meal_log_id"],
+            "user_id": user_id, "meal_log_id": meal["id"],
             "enjoyment": enjoyment, "satiety": satiety, "energy": energy,
             "notes": notes or None,
         }

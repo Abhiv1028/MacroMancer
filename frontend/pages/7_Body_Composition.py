@@ -1,8 +1,4 @@
-"""Body Composition & TDEE: log weight, recalc targets, view weight trend.
-
-Note: the backend has no body-composition history endpoint, so the trend chart
-shows entries logged during this session.
-"""
+"""Body Composition & TDEE: log weight, recalc targets, view weight trend."""
 
 from __future__ import annotations
 
@@ -47,7 +43,6 @@ with st.form("bodycomp"):
             payload["body_fat_percent"] = body_fat
         try:
             res = api.log_body_composition(payload)
-            st.session_state.weight_history.append({"date": d.isoformat(), "weight": weight})
             # Bust cached user/targets/tdee so the sidebar & cards refresh.
             api.get_user.clear()
             api.get_targets.clear()
@@ -62,12 +57,15 @@ with st.form("bodycomp"):
             helpers.toast_error(exc)
 
 # --- Weight trend ---------------------------------------------------------- #
-st.markdown("### 📈 Weight trend (this session)")
-history = st.session_state.weight_history
+st.markdown("### 📈 Weight trend")
+try:
+    history = api.body_comp_history(user_id)
+except api.APIError:
+    history = []
 if len(history) < 2:
     st.info("Log at least two measurements to see a trend line.")
 else:
-    df = pd.DataFrame(history).sort_values("date")
+    df = pd.DataFrame([{"date": h["date"], "weight": h["weight_kg"]} for h in history]).sort_values("date")
     fig = go.Figure(
         go.Scatter(
             x=df["date"], y=df["weight"], mode="lines+markers",

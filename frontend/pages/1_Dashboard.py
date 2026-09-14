@@ -1,8 +1,4 @@
-"""Dashboard: today's calories & macros + logged meals.
-
-Note: the backend has no `GET /meals` endpoint, so 'today's meals' reflects
-meals logged during this browser session (via any page).
-"""
+"""Dashboard: today's calories & macros + logged meals (persisted via the API)."""
 
 from __future__ import annotations
 
@@ -30,7 +26,7 @@ if not targets:
     st.warning("No targets yet. Create a user in the sidebar to generate them.")
     st.stop()
 
-consumed = helpers.today_consumed()
+consumed = helpers.today_consumed(user_id)
 
 # --- Calorie hero + macro cards ------------------------------------------- #
 macro_progress.calorie_hero(consumed["calories"], targets.get("calories", 0))
@@ -50,12 +46,9 @@ st.divider()
 
 # --- Today's meals --------------------------------------------------------- #
 st.markdown("### 🍽️ Today's meals")
-meals = st.session_state.today_meals
+meals = helpers.todays_meals(user_id)
 if not meals:
-    st.info("No meals logged yet this session. Use **Chat** or **Optimize** to plan and log a meal.")
+    st.info("No meals logged today. Use **Optimize** or **Chat** to plan and log a meal.")
 else:
-    for i in range(len(meals) - 1, -1, -1):
-        meal_card.meal_card(meals[i], i)
-    if st.button("Clear today's log"):
-        st.session_state.today_meals = []
-        st.rerun()
+    for m in meals:
+        meal_card.meal_card(m)

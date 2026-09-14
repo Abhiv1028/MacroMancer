@@ -1,8 +1,4 @@
-"""Grocery: view a list grouped by aisle, check items off, generate new lists.
-
-Note: the backend has no 'list all grocery lists' endpoint, so this page tracks
-lists created during this session (plus lets you open one by id).
-"""
+"""Grocery: view a list grouped by aisle, check items off, generate new lists."""
 
 from __future__ import annotations
 
@@ -59,20 +55,21 @@ with st.expander("➕ Generate a new grocery list", expanded=False):
 
 st.divider()
 
-# --- Select a list --------------------------------------------------------- #
-ids = st.session_state.grocery_list_ids
-c1, c2 = st.columns([3, 2])
-selected = None
-if ids:
-    selected = c1.selectbox("Your lists (this session)", ids,
-                            index=len(ids) - 1, format_func=lambda i: f"List #{i}")
-manual = c2.number_input("…or open by ID", min_value=0, step=1, value=0)
-if manual:
-    selected = manual
+# --- Select a list (persisted) --------------------------------------------- #
+try:
+    lists = api.list_grocery_lists(user_id)
+except api.APIError as exc:
+    helpers.toast_error(exc)
+    lists = []
 
-if not selected:
-    st.info("Create a list above, or ask in **Chat** ('give me a grocery list'), "
-            "then it'll appear here.")
+selected = None
+if lists:
+    options = {f"{row['name']} · #{row['id']} ({row['item_count']} items)": row["id"] for row in lists}
+    choice = st.selectbox("Your grocery lists", list(options))
+    selected = options[choice]
+else:
+    st.info("No lists yet. Create one above, or ask in **Chat** "
+            "('give me a grocery list'), then it'll appear here.")
     st.stop()
 
 # --- Display the list ------------------------------------------------------ #

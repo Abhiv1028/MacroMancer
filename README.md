@@ -21,7 +21,7 @@ license: mit
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-ML-EB5E28)](https://xgboost.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-178%20passing-27AE60)](#testing)
+[![Tests](https://img.shields.io/badge/tests-185%20passing-27AE60)](#testing)
 [![Docker](https://img.shields.io/badge/Docker-compose%20up-2496ED?logo=docker&logoColor=white)](#deployment-docker)
 [![Hugging Face Spaces](https://img.shields.io/badge/live%20demo-%F0%9F%A4%97%20Spaces-FFD21E)](#live-demo--deploy-free-on-hugging-face-spaces-5-min)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -45,8 +45,8 @@ polished **Streamlit** dashboard — packaged to deploy as a single container.
 
 | 📊 | Metric | | 📊 | Metric |
 |---|---|---|---|---|
-| **9** | phases (data → ML → LLM → RL → UI → deploy) | | **36** | REST endpoints |
-| **178** | passing tests (18 suites) | | **27** | database models |
+| **9** | phases (data → ML → LLM → RL → UI → deploy) | | **37** | REST endpoints |
+| **185** | passing tests (19 suites) | | **27** | database models |
 | **25** | backend services | | **~8.3k** | lines of Python (66 files) |
 | **12-feature** | XGBoost recommender | | **LinUCB** | online RL bandit |
 
@@ -138,7 +138,7 @@ polished **Streamlit** dashboard — packaged to deploy as a single container.
   tiers. See **Nearby Restaurants**.
 
 **Phase 8 (Streamlit frontend)** —
-- A polished, consumer-grade **dashboard** (`frontend/`) over the whole API:
+- A polished **dashboard** (`frontend/`) over the whole API:
   Dashboard, Chat, Optimize, Restaurants, Grocery, Feedback, and Body/TDEE
   pages, with macro progress bars, chat bubbles, food cards, and a weight-trend
   chart. See **Frontend (Streamlit)**.
@@ -390,14 +390,14 @@ Environment overrides: `HOST`, `PORT`, `RELOAD=true`.
 
 ## Testing
 
-**178 tests across 18 suites** cover macro math, the ML optimizer, the LLM chat
+**185 tests across 19 suites** cover macro math, the ML optimizer, the LLM chat
 fallback, OCR/fuzzy matching, the full RL loop (reward → bandit → online learning
 → evaluation), caching/rate-limiting, and every route. They run with **no running
 server, no network, and no libomp required** — external services are mocked and
 the one optimizer test auto-skips if XGBoost can't load.
 
 ```bash
-pytest -q          # -> 178 passed
+pytest -q          # -> 185 passed
 ```
 
 Coverage by area:
@@ -426,6 +426,7 @@ python test_api.py                      # terminal 2  (create user → log meal 
 | `POST /foods`                         | Add a custom food (macros/100g + optional portions)|
 | `GET /foods?search=&skip=&limit=`     | Search USDA + custom foods (paginated)             |
 | `POST /meals`                         | Log a meal (macros/calories auto-derived)          |
+| `GET /meals?user_id=&date=`           | List a user's logged meals · `DELETE /meals/{id}`  |
 | `POST /optimize`                      | Top-5 food recommendations for remaining macros    |
 | `POST /train?run_async=true`          | Retrain from meal logs incl. `avg_feedback_score` feature |
 | `POST /api/v1/chat`                   | Conversational meal planning via local Ollama LLM  |
@@ -627,8 +628,9 @@ a user toward. **Part 1** lays the data + reward foundation:
   ```
   reward = 0.5·macro_adherence + 0.3·feedback_avg + 0.2·satiety_norm
   ```
-  where `macro_adherence = clamp(1 − mean(|target − eaten| / target), 0, 1)`, and
-  feedback terms are the mean of enjoyment/satiety/energy normalized by 5.
+  where `macro_adherence = clamp(1 − mean(|target − eaten| / target), 0, 1)`,
+  `feedback_avg = mean(enjoyment, energy)/5`, and `satiety_norm = mean(satiety)/5`
+  (satiety is kept out of `feedback_avg` so it isn't double-counted).
   Feedback terms are 0 on days with no logged feedback. Stored idempotently in
   `RLReward` (one row per user/day) with a `components` breakdown.
 - **Context** (`build_context`): a normalized `[0,1]` feature vector —
@@ -657,7 +659,10 @@ curl -s "localhost:8000/api/v1/rl/rewards/1?start_date=2026-07-01&end_date=2026-
   (d); `select_action` is **epsilon-greedy** with `ε = max(0.05, 1/√(updates+1))`,
   so a fresh bandit explores uniformly and exploits more as it learns. Weights
   persist to `data/rl_bandit_weights.json` (`RL_BANDIT_PATH` to override) and load
-  on startup.
+  on startup. **Scope:** this is a **single global bandit** shared across users —
+  selection is still personalized through the context vector, but the learned
+  weights are shared (a deliberate simplification; per-user bandits would key
+  weights by `user_id`). See [Limitations](#limitations).
 - **Action → macros** (`rl_actions.apply_action`): the chosen strategy's calorie
   split is applied to the user's remaining calories → `{protein_g, carbs_g,
   fat_g, calories}`.
@@ -806,11 +811,10 @@ Design: nutrition-green/blue/orange palette, rounded cards with hover lift, colo
 coded progress (green on-track / orange close / red off), custom CSS, emojis, and
 friendly error toasts ("Cannot connect to the backend…").
 
-> The frontend only calls the existing API (no backend changes). A few backend
-> **read** endpoints don't exist yet (list a user's meals, list all grocery
-> lists, body-comp history), so those views use in-session state — meals/lists/
-> weights you log or open during the session appear immediately, and the pages
-> note this. Add `GET` endpoints later to persist across sessions.
+> Fully persisted across sessions: the dashboard, grocery, and body pages read
+> from `GET /meals`, `GET /grocery_lists`, and
+> `GET /body_composition/history/{id}` (with `DELETE /meals/{id}` for removing a
+> meal), so what you log survives a refresh.
 
 ## Nearby Restaurants
 

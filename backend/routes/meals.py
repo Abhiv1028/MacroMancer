@@ -2,20 +2,54 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date as date_cls, datetime, timedelta
+from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.db import get_db, session_scope
 from backend.models import Food, MealLog, Portion, User
-from backend.schemas import MealCreate, MealOut
+from backend.schemas import MealCreate, MealHistoryItem, MealOut
 from backend.services import cache, food_utils, rl_online
 from backend.services.daily_summary import update_daily_summary
 
 router = APIRouter(prefix="/meals", tags=["meals"])
 
 VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
+
+
+@router.get("", response_model=List[MealHistoryItem])
+def list_meals(
+    user_id: int = Query(...),
+    date: Optional[str] = Query(default=None, description="YYYY-MM-DD (defaults to all)"),
+    db: Session = Depends(get_db),
+) -> List[MealHistoryItem]:
+    """List a user's logged meals, most recent first, optionally for one date."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    query = db.query(MealLog).filter(MealLog.user_id == user_id)
+    if date:
+        try:
+            day = date_cls.fromisoformat(date)
+        except ValueError:
+            raise HTTPException(422, "date must be YYYY-MM-DD")
+        start = datetime(day.year, day.month, day.day)
+        query = query.filter(
+            MealLog.timestamp >= start, MealLog.timestamp < start + timedelta(days=1)
+        )
+    rows = query.order_by(MealLog.timestamp.desc()).all()
+    return [
+        MealHistoryItem(
+            id=r.id, food_id=r.food_id,
+            food_name=r.food.name if r.food else "Food",
+            grams_consumed=r.grams_consumed, meal_type=r.meal_type,
+            timestamp=r.timestamp, protein_g=r.protein_g, carbs_g=r.carbs_g,
+            fat_g=r.fat_g, calories=r.calories,
+        )
+        for r in rows
+    ]
 
 
 def _summary_task(user_id: int, day) -> None:
@@ -83,3 +117,21 @@ def log_meal(
         rl_online.reward_and_update_task, user.id, day, day_complete
     )
     return MealOut.model_validate(meal)
+
+
+@router.delete("/{meal_id}")
+def delete_meal(
+    meal_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a logged meal and refresh that day's summary/cache."""
+    meal = db.get(MealLog, meal_id)
+    if meal is None:
+        raise HTTPException(404, "Meal not found")
+    user_id, day = meal.user_id, meal.timestamp.date()
+    db.delete(meal)
+    db.commit()
+    cache.invalidate_user_optimize(user_id)
+    background_tasks.add_task(_summary_task, user_id, day)
+    return {"status": "deleted", "meal_id": meal_id}

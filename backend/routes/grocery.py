@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.db import get_db
 from backend.models import Conversation, ConversationSession, GroceryList, GroceryItem, User
 from backend.schemas import (
+    GroceryListSummary,
     GroceryItemResponse,
     GroceryListCreate,
     GroceryListDetailResponse,
@@ -107,6 +109,31 @@ def create_list(
         name=grocery_list.name,
         items=[GroceryItemResponse.model_validate(i) for i in grocery_list.items],
     )
+
+
+@router.get("/grocery_lists", response_model=List[GroceryListSummary])
+def list_grocery_lists(
+    user_id: int = Query(...), db: Session = Depends(get_db)
+) -> List[GroceryListSummary]:
+    """List a user's grocery lists (most recent first) with item counts."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    rows = (
+        db.query(
+            GroceryList.id, GroceryList.name, GroceryList.created_at,
+            func.count(GroceryItem.id).label("item_count"),
+        )
+        .outerjoin(GroceryItem, GroceryItem.grocery_list_id == GroceryList.id)
+        .filter(GroceryList.user_id == user_id)
+        .group_by(GroceryList.id)
+        .order_by(GroceryList.created_at.desc())
+        .all()
+    )
+    return [
+        GroceryListSummary(id=r.id, name=r.name, created_at=r.created_at, item_count=r.item_count)
+        for r in rows
+    ]
 
 
 @router.get(

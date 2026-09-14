@@ -123,13 +123,22 @@ def init_state() -> None:
 
 
 def add_logged_meal(meal: Dict) -> None:
-    """Record a meal logged via the UI (backend has no list-meals endpoint)."""
+    """Optimistic local echo of a just-logged meal (source of truth is the API)."""
     st.session_state.today_meals.append(meal)
 
 
-def today_consumed() -> Dict[str, float]:
+def todays_meals(user_id: int) -> List[Dict]:
+    """Today's persisted meals for a user (empty list on error)."""
+    try:
+        return api.list_meals(user_id, today_str())
+    except api.APIError:
+        return []
+
+
+def today_consumed(user_id: int) -> Dict[str, float]:
+    """Sum today's persisted macros for a user (from GET /meals)."""
     totals = {"protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0, "calories": 0.0}
-    for m in st.session_state.today_meals:
+    for m in todays_meals(user_id):
         for k in totals:
             totals[k] += float(m.get(k, 0) or 0)
     return totals

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from datetime import date as date_cls
 
+from typing import List
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,7 @@ from backend.rate_limit import limiter
 from backend.models import BodyComposition, Feedback, MealLog, User
 from backend.schemas import (
     BodyCompCreate,
+    BodyCompEntry,
     BodyCompResponse,
     FeedbackCreate,
     FeedbackResponse,
@@ -190,3 +193,20 @@ def update_goals(
         method_used=result.method_used,
         targets=MacroTargetOut.model_validate(targets),
     )
+
+
+@router.get("/body_composition/history/{user_id}", response_model=List[BodyCompEntry])
+def body_composition_history(
+    user_id: int, db: Session = Depends(get_db)
+) -> List[BodyCompEntry]:
+    """Return a user's body-composition measurements, oldest first (for charts)."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+    rows = (
+        db.query(BodyComposition)
+        .filter(BodyComposition.user_id == user_id)
+        .order_by(BodyComposition.date.asc(), BodyComposition.id.asc())
+        .all()
+    )
+    return [BodyCompEntry.model_validate(r) for r in rows]

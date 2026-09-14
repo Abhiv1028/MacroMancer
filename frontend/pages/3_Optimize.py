@@ -5,7 +5,6 @@ from __future__ import annotations
 import streamlit as st
 
 import api_client as api
-from components import macro_progress
 from utils import helpers
 
 helpers.setup_page("Optimize", icon="🎯")
@@ -19,7 +18,7 @@ except api.APIError as exc:
     helpers.toast_error(exc)
     st.stop()
 
-consumed = helpers.today_consumed()
+consumed = helpers.today_consumed(user_id)
 remaining = {
     "protein_g": max(targets.get("protein_g", 0) - consumed["protein_g"], 0),
     "carbs_g": max(targets.get("carbs_g", 0) - consumed["carbs_g"], 0),

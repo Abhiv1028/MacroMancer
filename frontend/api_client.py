@@ -119,6 +119,18 @@ def log_meal(user_id: int, food_id: int, grams: float, meal_type: str) -> Dict:
     )
 
 
+def list_meals(user_id: int, date: Optional[str] = None) -> List[Dict]:
+    """A user's logged meals (persisted), most recent first."""
+    params = {"user_id": user_id}
+    if date:
+        params["date"] = date
+    return _request("GET", f"{BASE}/meals", params=params)
+
+
+def delete_meal(meal_id: int) -> Dict:
+    return _request("DELETE", f"{BASE}/meals/{meal_id}")
+
+
 def optimize(
     user_id: int,
     current_macros: Dict,
@@ -160,11 +172,21 @@ def log_body_composition(payload: Dict) -> Dict:
     return _request("POST", f"{API}/body_composition", json=payload)
 
 
+def body_comp_history(user_id: int) -> List[Dict]:
+    """A user's body-composition measurements (persisted), oldest first."""
+    return _request("GET", f"{API}/body_composition/history/{user_id}")
+
+
 # --------------------------------------------------------------------------- #
 # Grocery
 # --------------------------------------------------------------------------- #
 def create_grocery_list(payload: Dict) -> Dict:
     return _request("POST", f"{API}/grocery_lists", json=payload)
+
+
+def list_grocery_lists(user_id: int) -> List[Dict]:
+    """A user's grocery lists (persisted), most recent first."""
+    return _request("GET", f"{API}/grocery_lists", params={"user_id": user_id})
 
 
 def get_grocery_list(list_id: int) -> Dict:

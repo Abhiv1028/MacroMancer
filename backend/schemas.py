@@ -143,6 +143,21 @@ class MealOut(BaseModel):
     calories: float
 
 
+class MealHistoryItem(BaseModel):
+    """A logged meal enriched with the food's name (for GET /meals)."""
+
+    id: int
+    food_id: int
+    food_name: str
+    grams_consumed: float
+    meal_type: str
+    timestamp: datetime
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    calories: float
+
+
 # --------------------------------------------------------------------------- #
 # Optimize
 # --------------------------------------------------------------------------- #
@@ -311,6 +326,28 @@ class GroceryListDetailResponse(BaseModel):
     name: str
     created_at: datetime
     items: List[GroceryItemResponse]
+
+
+class GroceryListSummary(BaseModel):
+    """Lightweight grocery-list row for listing a user's lists."""
+
+    id: int
+    name: str
+    created_at: datetime
+    item_count: int
+
+
+class BodyCompEntry(BaseModel):
+    """A single body-composition measurement (for history listings)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    date: date_cls
+    weight_kg: float
+    body_fat_percent: Optional[float] = None
+    lean_mass_kg: Optional[float] = None
+    created_at: datetime
 
 
 # --------------------------------------------------------------------------- #
