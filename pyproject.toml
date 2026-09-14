@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Put the repo root on sys.path so `backend` imports whether tests are run via
+# the `pytest` console script (as CI does) or `python -m pytest` (which also
+# adds the CWD). Without this, CI failed at conftest import with
+# `ModuleNotFoundError: No module named 'backend'` (pytest usage error, exit 4).
+pythonpath = ["."]
+testpaths = ["tests"]
