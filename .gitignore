@@ -9,8 +9,9 @@ __pycache__/
 data/*.csv
 data/*.zip
 data/*.json
-!data/food_categories.json   # required by the grocery categorizer + tests
-!data/seed_foods.json        # demo seed data for the Docker/HF live demo
+# but keep the two data files the app needs at runtime:
+!data/food_categories.json
+!data/seed_foods.json
 rl_bandit_weights.json
 frontend/.streamlit/
 ollama.log
